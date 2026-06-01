@@ -16,6 +16,11 @@ leg_length              = 30;
 face_width              = 40;
 material_thickness      = 8;
 
+/* [Mounting Holes] */
+// Keep this in sync with reinforcement_bracket.scad.
+hole_diameter           = 5.5;
+bottom_hole_outboard_offset = 3;
+
 /* [Pair Layout] */
 gap_between_brackets    = 32;    // Clear gap between inner upright faces
 
@@ -35,6 +40,8 @@ $fs                     = 0.4;
 
 substrate_length        = gap_between_brackets + 2 * leg_length + 2 * substrate_end_margin;
 substrate_width         = face_width + 2 * substrate_side_margin;
+bottom_hole_center_from_corner = leg_length / 2 + bottom_hole_outboard_offset;
+substrate_hole_center_x = gap_between_brackets / 2 + bottom_hole_center_from_corner;
 
 // ============================================================
 // GEOMETRY
@@ -47,7 +54,9 @@ module substrate_plate() {
 
 module upright_bracket() {
     rotate([90, 0, 0])
-        reinforcement_bracket();
+        reinforcement_bracket(
+            horizontal_hole_center_from_corner = bottom_hole_center_from_corner
+        );
 }
 
 module left_bracket() {
@@ -61,11 +70,20 @@ module right_bracket() {
         upright_bracket();
 }
 
+module substrate_mount_holes() {
+    for (side = [-1, 1])
+        translate([side * substrate_hole_center_x, 0, substrate_thickness / 2])
+            cylinder(h = substrate_thickness + 0.4, d = hole_diameter, center = true);
+}
+
 module paired_reinforcement_bracket() {
-    union() {
-        substrate_plate();
-        left_bracket();
-        right_bracket();
+    difference() {
+        union() {
+            substrate_plate();
+            left_bracket();
+            right_bracket();
+        }
+        substrate_mount_holes();
     }
 }
 

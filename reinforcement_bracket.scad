@@ -42,7 +42,7 @@ $fs                     = 0.4;
 half_face_width         = face_width / 2;
 gusset_band             = min(gusset_band_width, face_width / 2 - 0.2);
 gusset_center_offset    = half_face_width - gusset_band / 2;
-hole_center_from_corner = leg_length / 2;
+default_hole_center_from_corner = leg_length / 2;
 
 // ============================================================
 // HELPERS
@@ -74,12 +74,15 @@ module outer_gusset_profile() {
     ]);
 }
 
-module centered_holes() {
-    translate([hole_center_from_corner, material_thickness / 2, 0])
+module centered_holes(
+    horizontal_hole_center_from_corner = default_hole_center_from_corner,
+    vertical_hole_center_from_corner = default_hole_center_from_corner
+) {
+    translate([horizontal_hole_center_from_corner, material_thickness / 2, 0])
         rotate([90, 0, 0])
             cylinder(h = material_thickness + 0.4, d = hole_diameter, center = true);
 
-    translate([material_thickness / 2, hole_center_from_corner, 0])
+    translate([material_thickness / 2, vertical_hole_center_from_corner, 0])
         rotate([0, 90, 0])
             cylinder(h = material_thickness + 0.4, d = hole_diameter, center = true);
 }
@@ -95,14 +98,20 @@ module side_gussets() {
                 outer_gusset_profile();
 }
 
-module reinforcement_bracket() {
+module reinforcement_bracket(
+    horizontal_hole_center_from_corner = default_hole_center_from_corner,
+    vertical_hole_center_from_corner = default_hole_center_from_corner
+) {
     difference() {
         union() {
             horizontal_leg();
             vertical_leg();
             side_gussets();
         }
-        centered_holes();
+        centered_holes(
+            horizontal_hole_center_from_corner = horizontal_hole_center_from_corner,
+            vertical_hole_center_from_corner = vertical_hole_center_from_corner
+        );
     }
 }
 
