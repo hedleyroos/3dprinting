@@ -5,7 +5,7 @@
 // Features:
 //   - Contoured shoulders: tapered, rounded cross-section swept
 //     along a gentle parabolic curve
-//   - Separate glue-in hook with a keyed hex socket
+//   - Separate glue-in hook with a flatter-sided glue socket
 //   - Single off-center split for the hanger body
 //   - Loose alignment dowels for the body splice
 //   - Default exploded layout with visible air gaps between parts
@@ -24,6 +24,7 @@ shoulder_depth_c    = 48;    // Front-back depth at centre
 shoulder_depth_tip  = 48;    // Front-back depth at tips
 shoulder_thick_c    = 16;    // Vertical thickness at centre
 shoulder_thick_tip  = 16;    // Vertical thickness at tips
+shoulder_edge_radius = 5;    // Cross-section corner radius; smaller values leave flatter long sides for easier side-printing
 shoulder_fwd_sweep  = 0;     // Top-view forward sweep; keep 0 for parallel sides and flush side-printing
 
 /* [Hook] */
@@ -31,12 +32,9 @@ hook_enabled            = true;
 hook_stem_h             = 35;    // Straight stem from shoulder to bottom of loop
 hook_bend_r             = 24;    // Radius of the ?-loop
 hook_dia                = 11;
+hook_edge_radius        = 3.2;   // Hook and tenon corner radius; smaller values leave flatter printable sides
 hook_arc_sweep          = 260;   // Sweep of the curl: 180=open U, 260=easy fit, 330=tight
-hook_joint_dia          = hook_dia; // Diameter of the cylindrical tenon
-hook_key_dia            = 2.6;   // Diameter of the small alignment nub on the tenon
-hook_key_standout       = 0.8;   // How far the alignment nub stands proud of the round tenon
-hook_key_depth          = 2.2;   // Axial depth of the alignment nub near the hook base
-hook_joint_rotation     = 0;     // 0 keeps the alignment nub on the top side in the side-print hook layout
+hook_joint_dia          = hook_dia; // Width across the flatter-sided tenon
 hook_socket_depth       = 10.5;  // Socket depth into the hanger body
 hook_socket_clearance   = 0.35;  // Extra diameter for glue fit in the socket
 
@@ -88,7 +86,7 @@ body_row_span_y     = shoulder_drop + max(shoulder_thick_c, shoulder_thick_tip);
 hook_side_lift      = hook_dia / 2;
 hook_print_half_y   = hook_bend_r + hook_dia / 2;
 hook_print_span_x   = hook_stem_h + hook_bend_r * 2 + hook_tenon_depth + hook_dia;
-dowel_print_radius  = (split_peg_dia - 0.15) / 2;
+dowel_print_half_side = (split_peg_dia - 0.15) / 2;
 dowel_print_pitch   = split_peg_len + split_peg_dia + 4;
 dowel_row_span_x    = split_peg_len + max(0, split_peg_count - 1) * dowel_print_pitch;
 scene_extent        = hanger_width + shoulder_drop + hook_stem_h + hook_bend_r + 120;
@@ -100,8 +98,6 @@ scene_extent        = hanger_width + shoulder_drop + hook_stem_h + hook_bend_r +
 function split_peg_y_span() = max(0, min(split_face_depth / 2 - split_peg_dia / 2 - 3, split_peg_dia * 1.75));
 function split_peg_top_z()  = max(0, min(split_face_thick / 2 - split_peg_dia / 2 - 1.5, split_peg_dia * 0.45));
 function split_peg_bot_z()  = -max(0, min(split_face_thick / 2 - split_peg_dia / 2 - 1.75, split_peg_dia * 0.55));
-function key_offset(main_dia, key_dia, standout) = main_dia / 2 + standout - key_dia / 2;
-
 function peg_positions() = split_peg_count <= 1
     ? [[0, 0]]
     : split_peg_count == 2
@@ -113,6 +109,16 @@ function peg_positions() = split_peg_count <= 1
             : [for (i = [0 : split_peg_count - 1])
                    [(-1 + 2 * (i / max(1, split_peg_count - 1))) * split_peg_y_span(), 0]];
 
+module rounded_rect_2d(w, h, r) {
+    corner_r = min(r, w / 2 - 0.01, h / 2 - 0.01);
+    hull() {
+        translate([ w / 2 - corner_r,  h / 2 - corner_r]) circle(r = corner_r, $fn = 48);
+        translate([-w / 2 + corner_r,  h / 2 - corner_r]) circle(r = corner_r, $fn = 48);
+        translate([ w / 2 - corner_r, -h / 2 + corner_r]) circle(r = corner_r, $fn = 48);
+        translate([-w / 2 + corner_r, -h / 2 + corner_r]) circle(r = corner_r, $fn = 48);
+    }
+}
+
 module xsec(depth, thick, round) {
     r = min(round, depth / 2 - 0.01, thick / 2 - 0.01);
     hull() {
@@ -123,10 +129,9 @@ module xsec(depth, thick, round) {
     }
 }
 
-module hook_key_nub(main_dia, key_dia, standout, h) {
-    rotate([0, 0, hook_joint_rotation])
-        translate([0, key_offset(main_dia, key_dia, standout), 0])
-            cylinder(d = key_dia, h = h, $fn = 32);
+module hook_section(size, round, heading) {
+    rotate([0, -heading, 0])
+        xsec(size, size, round);
 }
 
 module keep_left_of_split() {
@@ -150,7 +155,7 @@ function sz(t) = -shoulder_drop * t * t;
 
 function depth(t) = shoulder_depth_c + (shoulder_depth_tip - shoulder_depth_c) * t;
 function thick(t) = shoulder_thick_c + (shoulder_thick_tip - shoulder_thick_c) * t;
-function rounding(t) = thick(t) * 0.45;
+function rounding(t) = shoulder_edge_radius;
 
 // ============================================================
 // BODY GEOMETRY
@@ -171,17 +176,17 @@ module shoulder_half() {
 
 module hook_socket_shape() {
     socket_dia = hook_joint_dia + hook_socket_clearance;
-    key_dia = hook_key_dia + hook_socket_clearance;
-    key_depth = min(hook_key_depth, max(0.8, hook_socket_depth - hook_socket_lead_h - 0.2));
+    lead_dia = socket_dia + 1.2;
+    socket_round = hook_edge_radius + hook_socket_clearance / 2;
     shaft_h = max(0.2, hook_socket_depth - hook_socket_lead_h);
     socket_top = shoulder_thick_c / 2 + 0.05;
 
     translate([0, 0, socket_top - hook_socket_depth]) {
-        cylinder(d = socket_dia, h = shaft_h, $fn = 48);
-        translate([0, 0, shaft_h - key_depth])
-            hook_key_nub(socket_dia, key_dia, hook_key_standout + hook_socket_clearance / 2, key_depth + hook_socket_lead_h);
+        linear_extrude(height = shaft_h)
+            rounded_rect_2d(socket_dia, socket_dia, socket_round);
         translate([0, 0, shaft_h])
-            cylinder(d1 = socket_dia, d2 = socket_dia + 1.2, h = hook_socket_lead_h, $fn = 48);
+            linear_extrude(height = hook_socket_lead_h, scale = lead_dia / socket_dia)
+                rounded_rect_2d(socket_dia, socket_dia, socket_round);
     }
 }
 
@@ -205,18 +210,18 @@ module hanger_body() {
 
 module split_holes_main() {
     hole_len = split_half_peg + split_peg_clearance * 2 + 0.05;
+    hole_side = split_peg_dia + split_peg_clearance;
     for (pt = peg_positions())
-        translate([split_x - hole_len, split_face_y + pt[0], split_face_z + pt[1]])
-            rotate([0, 90, 0])
-                cylinder(d = split_peg_dia + split_peg_clearance, h = hole_len, $fn = 32);
+        translate([split_x - hole_len, split_face_y + pt[0] - hole_side / 2, split_face_z + pt[1] - hole_side / 2])
+            cube([hole_len, hole_side, hole_side], center = false);
 }
 
 module split_holes_tip() {
     hole_len = split_half_peg + split_peg_clearance * 2 + 0.05;
+    hole_side = split_peg_dia + split_peg_clearance;
     for (pt = peg_positions())
-        translate([split_x, split_face_y + pt[0], split_face_z + pt[1]])
-            rotate([0, 90, 0])
-                cylinder(d = split_peg_dia + split_peg_clearance, h = hole_len, $fn = 32);
+        translate([split_x, split_face_y + pt[0] - hole_side / 2, split_face_z + pt[1] - hole_side / 2])
+            cube([hole_len, hole_side, hole_side], center = false);
 }
 
 module body_main_raw() {
@@ -260,17 +265,17 @@ module body_tip() {
 }
 
 module alignment_dowels() {
+    dowel_side = split_peg_dia - 0.15;
     for (pt = peg_positions())
         translate([split_x, split_face_y + pt[0], split_face_z + pt[1]])
-            rotate([0, 90, 0])
-                cylinder(d = split_peg_dia - 0.15, h = split_peg_len, center = true, $fn = 32);
+            cube([split_peg_len, dowel_side, dowel_side], center = true);
 }
 
 module compact_dowels_for_print() {
+    dowel_side = split_peg_dia - 0.15;
     for (i = [0 : split_peg_count - 1])
-        translate([(i - (split_peg_count - 1) / 2) * dowel_print_pitch, 0, dowel_print_radius])
-            rotate([0, 90, 0])
-                cylinder(d = split_peg_dia - 0.15, h = split_peg_len, center = true, $fn = 32);
+        translate([(i - (split_peg_count - 1) / 2) * dowel_print_pitch, 0, dowel_print_half_side])
+            cube([split_peg_len, dowel_side, dowel_side], center = true);
 }
 
 // ============================================================
@@ -280,16 +285,15 @@ module compact_dowels_for_print() {
 module hook_tenon() {
     tenon_dia = hook_joint_dia;
     lead_dia = max(hook_joint_dia * 0.82, hook_joint_dia - 1.6);
-    key_depth = min(hook_key_depth, max(0.8, hook_tenon_depth - hook_tenon_lead_h - 0.2));
     shaft_h = max(0.2, hook_tenon_depth - hook_tenon_lead_h);
     tenon_top = shoulder_thick_c / 2 + 0.05;
 
     translate([0, 0, tenon_top - hook_tenon_depth]) {
-        cylinder(d1 = lead_dia, d2 = tenon_dia, h = hook_tenon_lead_h, $fn = 48);
+        linear_extrude(height = hook_tenon_lead_h, scale = tenon_dia / lead_dia)
+            rounded_rect_2d(lead_dia, lead_dia, hook_edge_radius);
         translate([0, 0, hook_tenon_lead_h])
-            cylinder(d = tenon_dia, h = shaft_h, $fn = 48);
-        translate([0, 0, hook_tenon_depth - key_depth])
-            hook_key_nub(tenon_dia, hook_key_dia, hook_key_standout, key_depth);
+            linear_extrude(height = shaft_h)
+                rounded_rect_2d(tenon_dia, tenon_dia, hook_edge_radius);
     }
 }
 
@@ -303,8 +307,12 @@ module hook() {
     union() {
         hook_tenon();
 
-        translate([0, 0, stem_base_z])
-            cylinder(d = hook_dia, h = hook_stem_h + 0.1, $fn = $fn);
+        hull() {
+            translate([0, 0, stem_base_z])
+                hook_section(hook_dia, hook_edge_radius, 90);
+            translate([0, 0, loop_bot])
+                hook_section(hook_dia, hook_edge_radius, 90);
+        }
 
         for (i = [0 : arc_pts - 1]) {
             a0 = 270 - hook_arc_sweep * (i / arc_pts);
@@ -312,10 +320,10 @@ module hook() {
             hull() {
                 translate([arc_cx + hook_bend_r * cos(a0), 0,
                            arc_cz + hook_bend_r * sin(a0)])
-                    sphere(d = hook_dia, $fn = 48);
+                    hook_section(hook_dia, hook_edge_radius, a0 + 90);
                 translate([arc_cx + hook_bend_r * cos(a1), 0,
                            arc_cz + hook_bend_r * sin(a1)])
-                    sphere(d = hook_dia, $fn = 48);
+                    hook_section(hook_dia, hook_edge_radius, a1 + 90);
             }
         }
     }
