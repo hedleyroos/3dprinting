@@ -115,6 +115,8 @@ function cubic_bezier_2d(p0, p1, p2, p3, t) = [
     pow(1 - t, 3) * p0[1] + 3 * pow(1 - t, 2) * t * p1[1] + 3 * (1 - t) * pow(t, 2) * p2[1] + pow(t, 3) * p3[1]
 ];
 
+function smoothstep01(t) = t * t * (3 - 2 * t);
+
 // ============================================================
 // GEOMETRY
 // ============================================================
@@ -127,7 +129,13 @@ module ceiling_plate() {
 module hook_profile_2d() {
     arc_steps = 32;
     blend_steps = 16;
+    root_steps = 10;
     rod_center = [rod_center_x, -rod_center_drop];
+    root_top = [stem_x, plate_underside_z - 0.6];
+    root_bottom = [stem_x, stem_top_z - plate_root_drop];
+    root_points = [for (i = [0 : root_steps])
+        let(t = i / root_steps)
+            [stem_x, root_top[1] + (root_bottom[1] - root_top[1]) * t]];
     blend_points = [for (i = [0 : blend_steps])
         cubic_bezier_2d(
             [stem_x, transition_start_z],
@@ -149,13 +157,15 @@ module hook_profile_2d() {
     union() {
         circle_segment_2d([stem_x, stem_top_z], [stem_x, transition_start_z], hook_bar_radius);
 
-        // Flare the stem into the ceiling plate so the root is not a thin neck.
-        hull() {
-            translate([stem_x, plate_underside_z - 0.6])
-                circle(r = hook_bar_radius + plate_root_extra, $fn = 48);
-            translate([stem_x, stem_top_z - plate_root_drop])
-                circle(r = hook_bar_radius + 0.4, $fn = 48);
-        }
+        // Shape the stem root as a curved flare instead of a single straight-sided hull.
+        for (i = [0 : len(root_points) - 2])
+            let(
+                t0 = i / max(1, len(root_points) - 1),
+                t1 = (i + 1) / max(1, len(root_points) - 1),
+                r0 = hook_bar_radius + 0.4 + plate_root_extra * (1 - smoothstep01(t0)),
+                r1 = hook_bar_radius + 0.4 + plate_root_extra * (1 - smoothstep01(t1))
+            )
+                tapered_segment_2d(root_points[i], r0, root_points[i + 1], r1);
 
         for (i = [0 : len(blend_points) - 2])
             let(
