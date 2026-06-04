@@ -76,15 +76,17 @@ module outer_gusset_profile() {
 
 module centered_holes(
     horizontal_hole_center_from_corner = default_hole_center_from_corner,
-    vertical_hole_center_from_corner = default_hole_center_from_corner
+    vertical_hole_center_from_corner = default_hole_center_from_corner,
+    horizontal_hole_diameter = hole_diameter,
+    vertical_hole_diameter = hole_diameter
 ) {
     translate([horizontal_hole_center_from_corner, material_thickness / 2, 0])
         rotate([90, 0, 0])
-            cylinder(h = material_thickness + 0.4, d = hole_diameter, center = true);
+            cylinder(h = material_thickness + 0.4, d = horizontal_hole_diameter, center = true);
 
     translate([material_thickness / 2, vertical_hole_center_from_corner, 0])
         rotate([0, 90, 0])
-            cylinder(h = material_thickness + 0.4, d = hole_diameter, center = true);
+            cylinder(h = material_thickness + 0.4, d = vertical_hole_diameter, center = true);
 }
 
 // ============================================================
@@ -100,7 +102,9 @@ module side_gussets() {
 
 module reinforcement_bracket(
     horizontal_hole_center_from_corner = default_hole_center_from_corner,
-    vertical_hole_center_from_corner = default_hole_center_from_corner
+    vertical_hole_center_from_corner = default_hole_center_from_corner,
+    horizontal_hole_diameter = hole_diameter,
+    vertical_hole_diameter = hole_diameter
 ) {
     difference() {
         union() {
@@ -110,7 +114,9 @@ module reinforcement_bracket(
         }
         centered_holes(
             horizontal_hole_center_from_corner = horizontal_hole_center_from_corner,
-            vertical_hole_center_from_corner = vertical_hole_center_from_corner
+            vertical_hole_center_from_corner = vertical_hole_center_from_corner,
+            horizontal_hole_diameter = horizontal_hole_diameter,
+            vertical_hole_diameter = vertical_hole_diameter
         );
     }
 }
