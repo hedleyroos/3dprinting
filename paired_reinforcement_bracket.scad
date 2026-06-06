@@ -23,8 +23,8 @@ gusset_end_margin       = 4;
 /* [Mounting Holes] */
 bottom_hole_diameter    = 6.2;
 vertical_hole_diameter  = 6.2;
-bottom_hole_outboard_offset = 7;
-vertical_hole_raise     = 2;
+bottom_hole_outboard_offset = 6.6;
+vertical_hole_raise     = 2.8;
 
 /* [Pair Layout] */
 gap_between_brackets    = 32;    // Clear gap between inner upright faces
