@@ -13,8 +13,8 @@
 /* [Bracket Dimensions] */
 leg_length              = 30;
 face_width              = 40;
-vertical_wall_thickness = 8;     // Thickness of the upright leg
-bottom_thickness        = 4;     // Thickness of the horizontal leg (bottom part with holes)
+vertical_wall_thickness = 9;     // Thickness of the upright leg
+bottom_thickness        = 5;     // Thickness of the horizontal leg (bottom part with holes)
 
 /* [Bracing] */
 gusset_band_width       = 7;
