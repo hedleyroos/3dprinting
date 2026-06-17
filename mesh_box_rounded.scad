@@ -86,6 +86,17 @@ inner_d = box_d - 2 * wall_t;
 inner_corner_r = max(0.01, corner_r - wall_t);
 profile_skin = 0.05;
 
+function fitted_line_count(start_pos, end_pos, max_step) =
+    end_pos <= start_pos
+        ? 1
+        : ceil((end_pos - start_pos) / max_step) + 1;
+
+function fitted_line_step(start_pos, end_pos, max_step) =
+    let (count = fitted_line_count(start_pos, end_pos, max_step))
+    count <= 1
+        ? 0
+        : (end_pos - start_pos) / (count - 1);
+
 // Wall panel dimensions (flat portions between corner cylinders).
 front_w = box_w - 2 * corner_r;   // front / back wall width
 side_w  = box_d - 2 * corner_r;   // left / right wall width
@@ -153,10 +164,11 @@ module wall_profile_2d(w, h, side_margin) {
         zs = -h / 2 + rim_bottom  + hole_r;
         ze =  h / 2 - rim_top     - hole_r;
 
-        rows = floor((ze - zs) / hsp) + 1;
+        rows = fitted_line_count(zs, ze, hsp);
+        row_step = fitted_line_step(zs, ze, hsp);
 
         for (row = [0 : rows - 1]) {
-            z = zs + row * hsp;
+            z = zs + row * row_step;
             stagger = (row % 2 == 0) ? 0 : hsp / 2;
             for (x = [xs + stagger : hsp : xe]) {
                 translate([x, z])
@@ -456,9 +468,10 @@ module curved_wall_holes() {
     zs = rim_bottom  + hole_r;
     ze = box_h - rim_top - hole_r;
 
-    rows = floor((ze - zs) / hsp) + 1;
+    rows = fitted_line_count(zs, ze, hsp);
+    row_step = fitted_line_step(zs, ze, hsp);
     for (row = [0 : rows - 1]) {
-        z = zs + row * hsp;
+        z = zs + row * row_step;
         stagger = (row % 2 == 0) ? 0 : hsp / 2;
         for (x = [xs + stagger : hsp : xe]) {
             // Angle from cylinder axis to this X on the arc.
