@@ -182,17 +182,15 @@ module base_edge_cutter() {
         difference() {
             translate([0, 0, -profile_skin])
                 linear_extrude(height = soften_h + 2 * profile_skin)
-                    rounded_rect_2d(box_w, box_d, corner_r);
+                    outer_footprint_2d();
 
             hull() {
-                rounded_rect_slice(-profile_skin,
-                                   box_w - 2 * soften_inset,
-                                   box_d - 2 * soften_inset,
-                                   corner_r - soften_inset);
-                rounded_rect_slice(soften_h - profile_skin,
-                                   box_w,
-                                   box_d,
-                                   corner_r);
+                translate([0, 0, -profile_skin])
+                    linear_extrude(height = profile_skin)
+                        outer_footprint_inset_2d(soften_inset);
+                translate([0, 0, soften_h - profile_skin])
+                    linear_extrude(height = profile_skin)
+                        outer_footprint_2d();
             }
         }
     }
@@ -211,17 +209,15 @@ module top_edge_cutter() {
         difference() {
             translate([0, 0, top_z - profile_skin])
                 linear_extrude(height = soften_h + 2 * profile_skin)
-                    rounded_rect_2d(box_w, box_d, corner_r);
+                    outer_footprint_2d();
 
             hull() {
-                rounded_rect_slice(top_z,
-                                   box_w,
-                                   box_d,
-                                   corner_r);
-                rounded_rect_slice(box_h - profile_skin,
-                                   box_w - 2 * soften_inset,
-                                   box_d - 2 * soften_inset,
-                                   corner_r - soften_inset);
+                translate([0, 0, top_z])
+                    linear_extrude(height = profile_skin)
+                        outer_footprint_2d();
+                translate([0, 0, box_h - profile_skin])
+                    linear_extrude(height = profile_skin)
+                        outer_footprint_inset_2d(soften_inset);
             }
         }
     }
@@ -255,6 +251,32 @@ module front_crescent_2d() {
         pts,
         [[ front_w / 2, half_d]]
     ));
+}
+
+// 2D outer footprint of the box, including the curved front when
+// enabled. Used by the outer-edge softeners so they match the
+// actual perimeter instead of the original flat-front outline.
+module outer_footprint_2d() {
+    if (front_curve_bulge > 0) {
+        union() {
+            rounded_rect_2d(box_w, box_d, corner_r);
+            front_crescent_2d();
+        }
+    } else {
+        rounded_rect_2d(box_w, box_d, corner_r);
+    }
+}
+
+// Inset version of the outer footprint, preserving rounded corners.
+module outer_footprint_inset_2d(inset) {
+    inset_clamped = max(0, inset);
+
+    if (inset_clamped > 0) {
+        offset(r = -inset_clamped)
+            outer_footprint_2d();
+    } else {
+        outer_footprint_2d();
+    }
 }
 
 // 2D profile: the front extension of the brim's inner opening.
@@ -459,14 +481,8 @@ module mesh_box() {
             top_brim();
         }
 
-        // Bevel cutters only work on the flat-front box.
-        // When the front is curved, skip them to avoid
-        // non-manifold edges from the flat cutters slicing
-        // into the curved wall.
-        if (front_curve_bulge <= 0) {
-            base_edge_cutter();
-            top_edge_cutter();
-        }
+        base_edge_cutter();
+        top_edge_cutter();
     }
 }
 
