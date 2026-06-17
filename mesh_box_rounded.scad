@@ -54,11 +54,11 @@ corner_margin           = 12;    // No-hole keep-out from each vertical edge
 bottom_holes            = true;  // Enable mesh holes in the floor
 
 /* [Front Curve] */
-front_curve_bulge       = 12;    // How far the front wall bows outward at centre (mm)
+front_curve_bulge       = 36;    // How far the front wall bows outward at centre (mm)
                                  //   Set to 0 for a flat front wall.
                                  //   Typical: 8–18 mm depending on backpack shape.
-front_curve_taper_start_z = 220; // Height where the front curve starts tapering inward
-front_curve_taper_intensity = 0.5; // 0 = no taper, 1 = maximum mild top flattening
+front_curve_taper_start_z = 140; // Height where the front curve starts tapering inward
+front_curve_taper_intensity = 0.95; // 0 = no taper, 1 = maximum mild top flattening
 
 /* [View] */
 export_mode             = "print"; // print
