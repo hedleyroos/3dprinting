@@ -37,8 +37,9 @@ base_edge_inset         = 3.5;   // Bottom bevel pull-in to soften the base edge
 base_edge_h             = 6;     // Height of the softened base band
 
 /* [Top Brim] */
+top_brim_enabled        = true;  // Enable the inward top brim
 top_brim_outset         = 8;     // Horizontal overhang into the open top
-top_brim_h              = 4;     // Thickness of the top reinforcement brim
+top_brim_h              = 4;     // Vertical thickness of the inward top brim
 top_edge_inset          = 3;     // Top bevel pull-in to soften the outer rim
 top_edge_h              = 4;     // Height of the softened top band
 
@@ -271,6 +272,25 @@ module front_brim_inner_extension_2d(brim_outset) {
     ));
 }
 
+// 2D profile of the open top boundary, inset inward by `inset`.
+// This is the profile used to build the true interior brim:
+// the brim is the area between inset 0 and inset top_brim_outset.
+module top_opening_profile_2d(inset) {
+    inset_clamped = max(0, inset);
+    opening_w = inner_w - 2 * inset_clamped;
+    opening_d = inner_d - 2 * inset_clamped;
+    opening_r = max(0.01, inner_corner_r - inset_clamped);
+
+    if (front_curve_bulge > 0) {
+        union() {
+            rounded_rect_2d(opening_w, opening_d, opening_r);
+            front_brim_inner_extension_2d(inset_clamped);
+        }
+    } else {
+        rounded_rect_2d(opening_w, opening_d, opening_r);
+    }
+}
+
 // 2D profile: the full curved wall from inner to outer surface.
 module curved_wall_profile_2d() {
     n = ceil(front_w / 2);
@@ -331,36 +351,19 @@ module curved_front_wall() {
 // ============================================================
 
 module top_brim() {
+    brim_enabled = top_brim_enabled;
     brim_outset = max(0,
                       min(top_brim_outset,
                           inner_w / 2 - 0.5,
                           inner_d / 2 - 0.5));
     brim_h = max(top_brim_h, 0);
-    brim_inner_w = inner_w - 2 * brim_outset;
-    brim_inner_d = inner_d - 2 * brim_outset;
-    brim_inner_r = max(0.01, inner_corner_r - brim_outset);
 
-    if (brim_outset > 0 && brim_h > 0) {
+    if (brim_enabled && brim_outset > 0 && brim_h > 0) {
         translate([0, 0, box_h - brim_h])
             linear_extrude(height = brim_h)
                 difference() {
-                    if (front_curve_bulge > 0) {
-                        union() {
-                            rounded_rect_2d(box_w, box_d, corner_r);
-                            front_crescent_2d();
-                        }
-                    } else {
-                        rounded_rect_2d(box_w, box_d, corner_r);
-                    }
-
-                    if (front_curve_bulge > 0) {
-                        union() {
-                            rounded_rect_2d(brim_inner_w, brim_inner_d, brim_inner_r);
-                            front_brim_inner_extension_2d(brim_outset);
-                        }
-                    } else {
-                        rounded_rect_2d(brim_inner_w, brim_inner_d, brim_inner_r);
-                    }
+                    top_opening_profile_2d(0);
+                    top_opening_profile_2d(brim_outset);
                 }
     }
 }
