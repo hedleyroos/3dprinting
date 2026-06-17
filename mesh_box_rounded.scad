@@ -166,26 +166,41 @@ module wall_profile_2d(w, h, side_margin) {
     }
 }
 
-module floor_profile_2d(iw, id) {
+// Floor footprint extension over the curved front, at floor mid-height.
+// Its back edge meets the rectangular interior floor; its front edge
+// follows the inner surface of the curved front wall.
+module front_floor_crescent_2d(z) {
+    n = ceil(front_w / 2);
+    pts = [for (i = [0:n])
+        let (x = -front_w / 2 + i * front_w / n)
+        [x, front_inner_y(x, z)] ];
+    polygon(concat(
+        [[-front_w / 2, inner_d / 2]],
+        pts,
+        [[ front_w / 2, inner_d / 2]]
+    ));
+}
+
+// Staggered floor hole grid.  When the front bulges, the grid extends
+// forward to fill the bulged floor area; each hole is kept a wall-thickness
+// margin back from the curved inner front edge so a solid rim is preserved.
+module floor_holes_2d(z) {
     margin = hole_r + wall_t;
+    xs = -inner_w / 2 + margin;
+    xe =  inner_w / 2 - margin;
+    ys = -inner_d / 2 + margin;
+    ye = (front_curve_bulge > 0 ? front_inner_y(0, z) : inner_d / 2) - margin;
 
-    xs = -iw / 2 + margin;
-    xe =  iw / 2 - margin;
-    ys = -id / 2 + margin;
-    ye =  id / 2 - margin;
-
-    difference() {
-        square([iw, id], center = true);
-
-        cols = floor((ye - ys) / hsp) + 1;
-
-        for (col = [0 : cols - 1]) {
-            y = ys + col * hsp;
-            stagger = (col % 2 == 0) ? 0 : hsp / 2;
-            for (x = [xs + stagger : hsp : xe]) {
+    cols = floor((ye - ys) / hsp) + 1;
+    for (col = [0 : cols - 1]) {
+        y = ys + col * hsp;
+        stagger = (col % 2 == 0) ? 0 : hsp / 2;
+        for (x = [xs + stagger : hsp : xe]) {
+            front_lim = (front_curve_bulge > 0 ? front_inner_y(x, z)
+                                               : inner_d / 2) - margin;
+            if (y <= front_lim)
                 translate([x, y])
                     circle(d = hole_d, $fn = hole_fn);
-            }
         }
     }
 }
@@ -412,21 +427,23 @@ module top_opening_sweep_3d(inset, z0, z1) {
     }
 }
 
-module curved_wall_sweep_3d(z0, z1) {
+// Tapered curved wall as a fine stack of straight extrusions of the thin
+// crescent.  linear_extrude() extrudes the exact 2D profile (it does NOT
+// hull, so the concave crescent is preserved as a true thin shell — the
+// earlier hull-based sweep filled that concavity into a solid lens).  Each
+// segment uses the crescent at its mid-height; with small steps the wall
+// reads as a smooth taper while previewing and rendering cleanly.
+module curved_wall_taper_stack(z0, z1) {
     span = max(0, z1 - z0);
-    segs = max(1, ceil(span / 12));
+    segs = max(1, ceil(span / 3));   // ~3 mm steps -> ~0.2 mm ledges
 
     for (i = [0:segs - 1]) {
         za = z0 + i * span / segs;
         zb = z0 + (i + 1) * span / segs;
-        hull() {
-            translate([0, 0, za])
-                linear_extrude(height = profile_skin)
-                    curved_wall_profile_2d(za);
-            translate([0, 0, max(za, zb - profile_skin)])
-                linear_extrude(height = profile_skin)
-                    curved_wall_profile_2d(zb);
-        }
+        zm = (za + zb) / 2;
+        translate([0, 0, za])
+            linear_extrude(height = zb - za)
+                curved_wall_profile_2d(zm);
     }
 }
 
@@ -458,21 +475,21 @@ module curved_wall_holes() {
     }
 }
 
-// The curved front wall: flat lower section plus tapered loft when enabled.
+// The curved front wall.  With no taper it is a single extrusion of the
+// thin crescent.  With a taper the lower (constant-bulge) section is a
+// single extrusion and the upper section is the fine crescent stack, so
+// the result is always a true thin shell.  Holes are punched radially.
 module curved_front_wall() {
     difference() {
-        union() {
-            if (!front_curve_has_taper) {
-                linear_extrude(height = box_h)
+        if (!front_curve_has_taper) {
+            linear_extrude(height = box_h)
+                curved_wall_profile_2d(0);
+        } else {
+            if (front_curve_taper_start_z_clamped > 0) {
+                linear_extrude(height = front_curve_taper_start_z_clamped)
                     curved_wall_profile_2d(0);
-            } else {
-                if (front_curve_taper_start_z_clamped > 0) {
-                    linear_extrude(height = front_curve_taper_start_z_clamped)
-                        curved_wall_profile_2d(0);
-                }
-
-                curved_wall_sweep_3d(front_curve_taper_start_z_clamped, box_h);
             }
+            curved_wall_taper_stack(front_curve_taper_start_z_clamped, box_h);
         }
         curved_wall_holes();
     }
@@ -528,30 +545,21 @@ module corner_posts() {
 }
 
 module floor_panel() {
-    // Original floor (flat box interior).
-    translate([0, 0, wall_t / 2]) {
-        if (bottom_holes) {
-            linear_extrude(height = wall_t, center = true)
-                floor_profile_2d(inner_w, inner_d);
-        } else {
-            cube([inner_w, inner_d, wall_t], center = true);
-        }
-    }
+    floor_z = wall_t / 2;
 
-    // Floor extension patch to reach the curved front wall.
-    if (front_curve_bulge > 0) {
-        n = ceil(front_w / 2);
-        floor_pts = [for (i = [0:n])
-            let (x = -front_w / 2 + i * front_w / n)
-            [x, front_inner_y(x, wall_t / 2)] ];
-        translate([0, 0, wall_t / 2])
-            linear_extrude(height = wall_t, center = true)
-                polygon(concat(
-                    [[-front_w / 2, inner_d / 2]],
-                    floor_pts,
-                    [[ front_w / 2, inner_d / 2]]
-                ));
-    }
+    // Full floor footprint (rectangular interior + bulged front extension),
+    // with the staggered mesh punched through all of it including the bulge.
+    translate([0, 0, floor_z])
+        linear_extrude(height = wall_t, center = true)
+            difference() {
+                union() {
+                    square([inner_w, inner_d], center = true);
+                    if (front_curve_bulge > 0)
+                        front_floor_crescent_2d(floor_z);
+                }
+                if (bottom_holes)
+                    floor_holes_2d(floor_z);
+            }
 }
 
 // ----- assembly -----------------------------------------------------------
