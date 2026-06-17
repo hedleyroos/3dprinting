@@ -33,6 +33,7 @@ box_h                   = 300;   // Outer height (Z)
 /* [Wall] */
 wall_t                  = 4;     // Wall and floor thickness
 corner_r                = 8;     // External vertical corner radius
+corner_reinforcement_extra = 2;  // Extra inner-corner reinforcement beyond nominal wall thickness
 base_edge_inset         = 3.5;   // Bottom bevel pull-in to soften the base edge
 base_edge_h             = 6;     // Height of the softened base band
 
@@ -84,6 +85,10 @@ hsp     = hole_spacing;
 inner_w = box_w - 2 * wall_t;
 inner_d = box_d - 2 * wall_t;
 inner_corner_r = max(0.01, corner_r - wall_t);
+corner_reinforcement_extra_clamped = max(0,
+    min(corner_reinforcement_extra, inner_corner_r));
+corner_reinforcement_inner_r = max(0,
+    inner_corner_r - corner_reinforcement_extra_clamped);
 profile_skin = 0.05;
 
 function fitted_line_count(start_pos, end_pos, max_step) =
@@ -548,12 +553,30 @@ module side_wall_panel(x_center, w, h, margin) {
                 wall_profile_2d(w, h, margin);
 }
 
+module corner_reinforcement_2d(inner_r) {
+    difference() {
+        intersection() {
+            circle(r = corner_r, $fn = corner_fn);
+            square([corner_r + profile_skin, corner_r + profile_skin]);
+        }
+
+        if (inner_r > 0) {
+            intersection() {
+                circle(r = inner_r, $fn = corner_fn);
+                square([corner_r + profile_skin, corner_r + profile_skin]);
+            }
+        }
+    }
+}
+
 module corner_posts() {
     for (x = [-1, 1], y = [-1, 1]) {
         translate([x * (half_w - corner_r),
                    y * (half_d - corner_r),
                    0])
-            cylinder(r = corner_r, h = box_h, $fn = corner_fn);
+            linear_extrude(height = box_h)
+                scale([x, y])
+                    corner_reinforcement_2d(corner_reinforcement_inner_r);
     }
 }
 
