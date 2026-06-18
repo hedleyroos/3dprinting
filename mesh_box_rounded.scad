@@ -27,7 +27,7 @@
 
 /* [Box Dimensions] */
 box_w                   = 260;   // Outer width  (X)
-box_d                   = 100;   // Outer depth  (Y)
+box_d                   = 95;    // Outer depth  (Y)
 box_h                   = 300;   // Outer height (Z)
 
 /* [Wall] */
