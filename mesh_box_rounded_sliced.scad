@@ -1,13 +1,23 @@
 // ============================================================
-// Mesh Box — Sliced for Printing (Tongue & Groove Joint)
+// Mesh Box — Sliced for Printing (Overlapping Collar Joint)
 //
 // Splits mesh_box_rounded.scad horizontally so the 300 mm tall
-// box fits on typical 220 mm printers.  The two halves join
-// with a continuous tongue-and-groove around the full wall
-// perimeter — far stronger than corner dowels for lateral loads.
+// box fits on typical 220 mm printers.  Intended as a backpack
+// endoskeleton, so the joint must resist BENDING (the pack
+// flexing front<->back puts the wall at the split in tension),
+// not just racking.
+//
+// The two halves join with a continuous half-lap COLLAR around
+// the full wall perimeter: the top half carries the inner half
+// of the wall down past the split, nesting into a matching
+// rebate cut into the bottom half.  This gives a large glue/weld
+// area + real bending stiffness.  Designed to be acetone-welded
+// AND screwed across the lap (screws give tension/peel capacity
+// and serviceability; the weld makes it effectively monolithic).
 //
 // The split height is auto-computed to fall in the solid band
-// between mesh-hole rows, keeping the groove clear of holes.
+// between mesh-hole rows; the screw row is likewise snapped to a
+// solid inter-row gap inside the overlap band.
 //
 // Coordinate system:  see mesh_box_rounded.scad.
 //   X = width,  Y = depth,  Z = height (origin at centre of
@@ -20,11 +30,21 @@
 split_auto              = true;  // Auto-compute split height (recommended)
 slice_z_override        = 150;   // Manual split height (only when split_auto=false)
 
-/* [Joint] */
-groove_width            = 2.0;   // Width of the U-channel (mm)
-groove_depth            = 2.0;   // Depth of the groove into bottom half (mm)
-tongue_clearance        = 0.3;   // Total diametral clearance (0.15 per side)
-tongue_bottom_clearance = 0.2;   // Extra depth so tongue doesn't bottom out
+/* [Joint — Overlapping Collar (half-lap)] */
+collar_height     = 28;    // How far the collar laps below the split (mm)
+collar_t          = 2.0;   // Collar thickness (~half the 4 mm wall) (mm)
+collar_clearance  = 0.25;  // Gap on the lap step face for glue / print fit (mm)
+collar_bottom_gap = 0.3;   // Extra socket depth so the collar tip clears (mm)
+
+/* [Joint — Screws] */
+use_screws            = true;  // Add cross-lap screw provisions
+screw_d               = 3.4;   // Clearance hole through the outer wall (M3)
+boss_d                = 8.0;   // Boss dia on the collar (room for a heat-set insert)
+boss_proj             = 6.0;   // How far the boss projects inward past the collar (mm)
+insert_pilot_d        = 4.0;   // Heat-set insert pilot dia (use ~2.8 for self-tap)
+screws_back_wall      = 2;     // Screws in the flat back wall
+screws_per_side_wall  = 1;     // Screws in EACH side wall (left/right)
+// Front wall is curved + already stiff -> no screws there.
 
 /* [View] */
 part                    = "both"; // bottom | top | both | exploded
@@ -95,22 +115,46 @@ function compute_slice_z() =
 
 slice_z = split_auto ? compute_slice_z() : slice_z_override;
 
-// Clamp to a sensible range.
-slice_z_clamped = max(wall_t + groove_depth + 1,
-                  min(box_h - wall_t - groove_depth - 1,
+// Clamp to a sensible range (leave room below the split for the
+// full collar lap + tip clearance, and a little wall above).
+slice_z_clamped = max(wall_t + collar_height + collar_bottom_gap + 1,
+                  min(box_h - wall_t - 1,
                       slice_z));
 
-tongue_width  = groove_width - tongue_clearance;
-tongue_height = groove_depth - tongue_bottom_clearance;
+// Plan-view half-extents (parent's derived vars aren't imported by `use`).
+half_w = box_w / 2;
+half_d = box_d / 2;
+
+// Collar / rebate band.
+collar_z_bottom = slice_z_clamped - collar_height;
+rebate_z_bottom = collar_z_bottom - collar_bottom_gap;
+
+// Snap the screw row to the inter-row solid gap nearest the overlap
+// centre, so screws never cross a mesh hole.  Reuses the hole-row
+// layout helpers from the parent.
+function compute_screw_z() =
+    let(
+        zs     = rim_bottom + hole_r,
+        ze     = box_h - rim_top - hole_r,
+        rows   = fitted_line_count(zs, ze, hsp),
+        step   = fitted_line_step(zs, ze, hsp),
+        target = slice_z_clamped - collar_height / 2
+    )
+    _find_best_split(zs, step, rows, target, 0, target, 1e9);
+
+// Keep the boss fully inside the overlap band.
+screw_z = max(collar_z_bottom + boss_d / 2 + 1,
+          min(slice_z_clamped - boss_d / 2 - 1,
+              compute_screw_z()));
 
 echo(str("===== Sliced Box ====="));
 echo(str("Split height:        ", slice_z_clamped, " mm  (raw computed: ", slice_z, ")"));
 echo(str("Bottom piece Z:       0 → ", slice_z_clamped, " mm  (", slice_z_clamped, " mm tall)"));
 echo(str("Top piece Z:          ", slice_z_clamped, " → ", box_h, " mm  (", box_h - slice_z_clamped, " mm tall)"));
-echo(str("Groove:               ", groove_width, " × ", groove_depth, " mm"));
-echo(str("Tongue:               ", tongue_width, " × ", tongue_height, " mm"));
-echo(str("Clearance:            ", tongue_clearance, " mm diametral"));
-echo(str("Bottom clearance:     ", tongue_bottom_clearance, " mm"));
+echo(str("Collar:               ", collar_height, " mm tall × ", collar_t, " mm thick (half-lap)"));
+echo(str("Collar clearance:     ", collar_clearance, " mm (step), ", collar_bottom_gap, " mm (tip)"));
+echo(str("Screw row Z:          ", screw_z, " mm"));
+echo(str("Screws:               back=", screws_back_wall, "  each side=", screws_per_side_wall, "  (use_screws=", use_screws, ")"));
 
 // ============================================================
 // SPLIT HELPERS — large keep-out cubes for intersection()
@@ -129,38 +173,89 @@ module keep_above(z) {
 }
 
 // ============================================================
-// GROOVE & TONGUE — 2D ring profiles
+// COLLAR & REBATE — half-lap joint around the full perimeter
 // ============================================================
+//
+// The wall cross-section (outer edge .. offset -wall_t) is split
+// into an OUTER half and an INNER half along offset -collar_t.
+// Over the overlap band the bottom half keeps only its outer half
+// (the rebate removes the inner half); the top half's collar is the
+// inner half, hanging down into that socket.  All profiles come
+// from outer_footprint_2d() via offset(), so they follow the flat
+// walls, the curved front and the rounded corners automatically.
 
-// Thin 2D ring centred on the wall midline at the split height.
-// The ring follows the full perimeter (flat walls + curved front
-// + rounded corners) because it is derived from
-// outer_footprint_2d(slice_z) via offset().
-//
-//   outer_footprint_2d        — outer face of the wall
-//   offset(r = -half_wall)    — wall centreline
-//   offset(r = -(half_wall ± half_width)) — inner/outer edges of channel
-//
-module groove_profile_2d() {
-    half_gw = groove_width / 2;
-    half_w  = wall_t / 2;
+// 2D ring: the INNER half of the wall, shrunk on the step face by
+// collar_clearance so it slides into the socket with a glue gap.
+module collar_ring_2d() {
     difference() {
-        offset(r = -(half_w - half_gw))
+        offset(r = -(wall_t - collar_t + collar_clearance))
             outer_footprint_2d(slice_z_clamped);
-        offset(r = -(half_w + half_gw))
+        offset(r = -wall_t)
             outer_footprint_2d(slice_z_clamped);
     }
 }
 
-module tongue_profile_2d() {
-    half_tw = tongue_width / 2;
-    half_w  = wall_t / 2;
-    difference() {
-        offset(r = -(half_w - half_tw))
-            outer_footprint_2d(slice_z_clamped);
-        offset(r = -(half_w + half_tw))
-            outer_footprint_2d(slice_z_clamped);
+// The collar hanging below the split on the top half.  Its top face
+// (at slice_z) overlaps the top wall's inner half, so it fuses to
+// the top piece; its body nests into the bottom-half socket.
+module collar() {
+    translate([0, 0, collar_z_bottom])
+        linear_extrude(height = collar_height + 0.1)
+            collar_ring_2d();
+}
+
+// Solid plug that fills everything inside the lap step — subtracted
+// from the bottom half to carve the receiving socket (rebate).
+module rebate_cut() {
+    translate([0, 0, rebate_z_bottom])
+        linear_extrude(height = slice_z_clamped - rebate_z_bottom + 0.1)
+            offset(r = -(wall_t - collar_t))
+                outer_footprint_2d(slice_z_clamped);
+}
+
+// ============================================================
+// SCREWS — cross-lap fasteners through the overlap band
+// ============================================================
+
+// Place children at each screw site, +Z pointing inward along the
+// wall normal, origin on the OUTER wall face.
+module screw_sites() {
+    if (use_screws) {
+        // Back wall (-Y face): inward normal +Y.
+        bx_span = box_w - 2 * 30;
+        for (i = [0 : screws_back_wall - 1]) {
+            x = screws_back_wall <= 1 ? 0
+                : -bx_span / 2 + i * bx_span / (screws_back_wall - 1);
+            translate([x, -half_d, screw_z]) rotate([-90, 0, 0]) children();
+        }
+        // Side walls: inward normals -X (right) and +X (left).
+        sy_span = box_d - 2 * 20;
+        for (j = [0 : screws_per_side_wall - 1]) {
+            y = screws_per_side_wall <= 1 ? 0
+                : -sy_span / 2 + j * sy_span / (screws_per_side_wall - 1);
+            translate([ half_w, y, screw_z]) rotate([0, -90, 0]) children();
+            translate([-half_w, y, screw_z]) rotate([0,  90, 0]) children();
+        }
     }
+}
+
+// Clearance hole through the outer wall and across the gap (bottom).
+module screw_clearance() {
+    translate([0, 0, -1])
+        cylinder(d = screw_d, h = wall_t + 12, $fn = 24);
+}
+
+// Boss on the collar inner face for a heat-set insert (top).
+module screw_boss() {
+    translate([0, 0, wall_t - collar_t + collar_clearance])
+        cylinder(d = boss_d,
+                 h = (collar_t - collar_clearance) + boss_proj, $fn = 32);
+}
+
+// Insert pilot drilled through the collar + boss (top).
+module screw_pilot() {
+    translate([0, 0, -1])
+        cylinder(d = insert_pilot_d, h = wall_t + boss_proj + 4, $fn = 24);
 }
 
 // ============================================================
@@ -194,10 +289,12 @@ module mesh_box_sliced_bottom() {
     difference() {
         mesh_box_sliced_bottom_raw();
 
-        // U-groove cut into the top face, extending downward.
-        translate([0, 0, slice_z_clamped - groove_depth])
-            linear_extrude(height = groove_depth + 0.1)
-                groove_profile_2d();
+        // Carve the socket that receives the collar (removes the
+        // inner half of the wall over the overlap band).
+        rebate_cut();
+
+        // Screw clearance holes through the outer wall.
+        if (use_screws) screw_sites() screw_clearance();
 
         // Soften the outer bottom edge (subtractive — must be
         // inside the difference block, same pattern as the
@@ -211,12 +308,15 @@ module mesh_box_sliced_top() {
         union() {
             mesh_box_sliced_top_raw();
 
-            // Tongue extending below the bottom face into the
-            // groove of the lower half.
-            translate([0, 0, slice_z_clamped - tongue_height])
-                linear_extrude(height = tongue_height)
-                    tongue_profile_2d();
+            // Collar lapping down into the bottom-half socket.
+            collar();
+
+            // Bosses on the collar for the cross-lap screws.
+            if (use_screws) screw_sites() screw_boss();
         }
+
+        // Insert pilots through collar + boss.
+        if (use_screws) screw_sites() screw_pilot();
 
         // Soften the outer top edge (subtractive — must be
         // inside the difference block, same pattern as the
@@ -252,7 +352,6 @@ if (part == "bottom") {
 
     gap       = 5;
     half_gap  = gap / 2;
-    half_d    = box_d / 2;
 
     // Bottom piece flat back (design Y = -half_d) placed at
     // world Y = +half_gap so the piece extends away from the

@@ -24,7 +24,7 @@ box_d                   = 100;   // Outer depth  (Y)
 box_h                   = 300;   // Outer height (Z)
 
 /* [Wall] */
-wall_t                  = 4;     // Wall and floor thickness
+wall_t                  = 5;     // Wall and floor thickness
 corner_r                = 8;     // External vertical corner radius
 base_edge_inset         = 3.5;   // Bottom bevel pull-in to soften the base edge
 base_edge_h             = 6;     // Height of the softened base band
@@ -36,11 +36,16 @@ top_edge_inset          = 3;     // Top bevel pull-in to soften the outer rim
 top_edge_h              = 4;     // Height of the softened top band
 
 /* [Mesh Holes] */
-hole_d                  = 16;    // Circular hole diameter
-hole_spacing            = 22;    // Centre-to-centre hole spacing
-rim_top                 = 15;    // Solid band at top (no holes)
+hole_d                  = 12;    // Circular hole diameter
+hole_spacing            = 16;    // Centre-to-centre hole spacing
+rim_top                 = 10;    // Solid band at top (no holes)
 rim_bottom              = 10;    // Solid band at bottom (no holes)
 corner_margin           = 12;    // No-hole keep-out from each vertical edge
+
+/* [Inner Band] */
+band_t                  = 3;     // Inward projection thickness of the inner band
+band_h                  = 25;    // Vertical height of the band
+band_z                  = box_h / 2; // Vertical centre of the band
 
 /* [Bottom] */
 bottom_holes            = true;  // Enable mesh holes in the floor
@@ -69,6 +74,7 @@ hsp     = hole_spacing;
 inner_w = box_w - 2 * wall_t;
 inner_d = box_d - 2 * wall_t;
 inner_corner_r = max(0.01, corner_r - wall_t);
+band_inner_r   = inner_corner_r; // Rounding on the band's inner edge (corners)
 profile_skin = 0.05;
 
 // Wall panel dimensions (flat portions between corner cylinders).
@@ -117,12 +123,19 @@ module wall_profile_2d(w, h, side_margin) {
 
         rows = floor((ze - zs) / hsp) + 1;
 
+        // Centre of the inner band in this panel's profile coords
+        // (profile Y maps to world Z = h/2 + profile_z).
+        band_zc = band_z - h / 2;
+
         for (row = [0 : rows - 1]) {
             z = zs + row * hsp;
-            stagger = (row % 2 == 0) ? 0 : hsp / 2;
-            for (x = [xs + stagger : hsp : xe]) {
-                translate([x, z])
-                    circle(d = hole_d, $fn = hole_fn);
+            // Skip any row whose hole would touch the solid inner band.
+            if (abs(z - band_zc) >= band_h / 2 + hole_r) {
+                stagger = (row % 2 == 0) ? 0 : hsp / 2;
+                for (x = [xs + stagger : hsp : xe]) {
+                    translate([x, z])
+                        circle(d = hole_d, $fn = hole_fn);
+                }
             }
         }
     }
@@ -136,9 +149,10 @@ module wall_profile_2d(w, h, side_margin) {
 //   id  – interior depth  (Y, inside the walls)
 //
 module floor_profile_2d(iw, id) {
-    // Keep holes at least hole_r + wall_t from the inner wall
-    // face so the subtraction cylinders stay inside the void.
-    margin = hole_r + wall_t;
+    // Keep a solid web between each hole and the inner wall face.  A
+    // 4 mm web (vs the old, over-conservative hole_r + wall_t = 13 mm)
+    // frees enough depth for an extra row of floor holes.
+    margin = hole_r + 4;
 
     xs = -iw / 2 + margin;
     xe =  iw / 2 - margin;
@@ -148,10 +162,13 @@ module floor_profile_2d(iw, id) {
     difference() {
         square([iw, id], center = true);
 
-        cols = floor((ye - ys) / hsp) + 1;
+        // +eps guards the floor() against landing one short on an exact
+        // boundary; centre the rows so they sit symmetric in the depth.
+        cols = floor((ye - ys) / hsp + 1e-6) + 1;
+        y0   = -(cols - 1) * hsp / 2;
 
         for (col = [0 : cols - 1]) {
-            y = ys + col * hsp;
+            y = y0 + col * hsp;
             stagger = (col % 2 == 0) ? 0 : hsp / 2;
             for (x = [xs + stagger : hsp : xe]) {
                 translate([x, y])
@@ -273,14 +290,42 @@ module side_wall_panel(x_center, w, h, margin) {
                 wall_profile_2d(w, h, margin);
 }
 
-// Four corner cylinders for rounded vertical edges.
+// Four corner posts: quarter-annulus shells (wall-thickness) that
+// round the outer vertical edges.  The inner bulk is removed — the
+// inner band now supplies the corner stiffness.
 module corner_posts() {
     for (x = [-1, 1], y = [-1, 1]) {
         translate([x * (half_w - corner_r),
                    y * (half_d - corner_r),
                    0])
-            cylinder(r = corner_r, h = box_h, $fn = corner_fn);
+            linear_extrude(height = box_h)
+                scale([x, y])
+                    intersection() {
+                        difference() {
+                            circle(r = corner_r, $fn = corner_fn);
+                            circle(r = corner_r - wall_t, $fn = corner_fn);
+                        }
+                        square([corner_r + profile_skin,
+                                corner_r + profile_skin]);
+                    }
     }
+}
+
+// Continuous solid (hole-free) band around the inner perimeter at
+// mid-height.  Projects inward `band_t` from the inner wall face;
+// its outer edge coincides with that face so it fuses to the walls
+// and corner shells.  Stiffens the box and forms the slice joint.
+module inner_band() {
+    translate([0, 0, band_z - band_h / 2])
+        linear_extrude(height = band_h)
+            difference() {
+                rounded_rect_2d(inner_w, inner_d, inner_corner_r);
+                // Inner edge as an explicit rounded rect so the band's
+                // inner corners stay rounded (a plain inward offset would
+                // collapse them to a sharp point).
+                rounded_rect_2d(inner_w - 2 * band_t,
+                                inner_d - 2 * band_t, band_inner_r);
+            }
 }
 
 // Floor panel with optional holes.
@@ -311,6 +356,9 @@ module mesh_box_body() {
         // Floor.
         translate([0, 0, wall_t / 2])
             floor_panel();
+
+        // Solid inner reinforcement band at mid-height.
+        inner_band();
     }
 }
 
