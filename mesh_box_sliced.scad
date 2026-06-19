@@ -1,10 +1,8 @@
 // ============================================================
 // Mesh Box — Sliced for Printing (flat-wall variant)
 //
-// Splits the flat-walled mesh_box.scad horizontally so the 300 mm
-// tall box fits on a typical ~220 mm printer.  The original
-// mesh_box.scad is left untouched; this file `use`s it and rebuilds
-// the geometry as two printable halves.
+// Splits the box horizontally so the 300 mm tall box fits on a
+// typical ~220 mm printer.  Standalone — no external dependencies.
 //
 // Joint = the solid INNER BAND (defined in mesh_box.scad) doubling as
 // a tongue-lap (the "overlap method" for an acetone weld).  The split
@@ -56,12 +54,7 @@ $fa                     = 1;
 $fs                     = 0.4;
 
 // ============================================================
-// INHERITED PARAMETERS — local copies of the parent's variables
-// that this file needs directly.  Modules and functions come from
-// the parent via `use` (they keep the parent's own parameters, so
-// mesh_box_body() etc. render identically to mesh_box.scad).
-//
-// Keep these in sync with mesh_box.scad.
+// Parameters — all defined locally (this file is standalone).
 // ============================================================
 
 /* [Box Dimensions] */
@@ -72,13 +65,26 @@ box_h                   = 300;   // Outer height (Z)
 /* [Wall] */
 wall_t                  = 5;     // Wall and floor thickness
 corner_r                = 8;     // External vertical corner radius
-corner_fn               = 60;    // Corner facet count (matches parent)
+corner_fn               = 60;    // Corner facet count
+base_edge_inset         = 3.5;   // Bottom bevel pull-in to soften the base edge
+base_edge_h             = 6;     // Height of the softened base band
+
+/* [Top Brim] */
+top_brim_outset         = 8;     // Horizontal overhang into the open top
+top_brim_h              = 4;     // Thickness of the top reinforcement brim
+top_edge_inset          = 3;     // Top bevel pull-in to soften the outer rim
+top_edge_h              = 4;     // Height of the softened top band
 
 /* [Mesh Holes] */
 hole_d                  = 12;    // Circular hole diameter
 hole_spacing            = 16;    // Centre-to-centre hole spacing
-rim_top                 = 10;    // Solid band at top (no holes) — one row under brim
+hole_fn                 = 30;    // Hole facet count
+rim_top                 = 10;    // Solid band at top (no holes)
 rim_bottom              = 10;    // Solid band at bottom (no holes)
+corner_margin           = 12;    // No-hole keep-out from each vertical edge
+
+/* [Bottom] */
+bottom_holes            = true;  // Enable mesh holes in the floor
 
 /* [Inner Band] */                // Keep in sync with mesh_box.scad
 band_t                  = 3;     // Inward projection thickness of the inner band
@@ -96,12 +102,226 @@ inner_corner_r = max(0.01, corner_r - wall_t);
 band_inner_r   = inner_corner_r; // Rounding on the band's inner edge (corners)
 band_bot = band_z - band_h / 2;
 band_top = band_z + band_h / 2;
-
-// Modules & functions from the parent (no auto-render with `use`).
-use <mesh_box.scad>
+front_w = box_w - 2 * corner_r;
+side_w  = box_d - 2 * corner_r;
+profile_skin = 0.05;
 
 // ============================================================
-// LOCAL HELPERS the flat parent does not export
+// MODULES — all geometry is defined locally (standalone file)
+// ============================================================
+
+module rounded_rect_2d(w, d, r) {
+    hull() {
+        for (x = [-1, 1], y = [-1, 1]) {
+            translate([x * (w / 2 - r),
+                       y * (d / 2 - r)])
+                circle(r = r, $fn = corner_fn);
+        }
+    }
+}
+
+module rounded_rect_slice(z0, w, d, r) {
+    translate([0, 0, z0])
+        linear_extrude(height = profile_skin)
+            rounded_rect_2d(w, d, r);
+}
+
+module wall_profile_2d(w, h, side_margin) {
+    difference() {
+        square([w, h], center = true);
+
+        xs = -w / 2 + side_margin + hole_r;
+        xe =  w / 2 - side_margin - hole_r;
+        zs = -h / 2 + rim_bottom  + hole_r;
+        ze =  h / 2 - rim_top     - hole_r;
+
+        rows = floor((ze - zs) / hsp) + 1;
+
+        band_zc = band_z - h / 2;
+
+        for (row = [0 : rows - 1]) {
+            z = zs + row * hsp;
+            if (abs(z - band_zc) >= band_h / 2 + hole_r) {
+                stagger = (row % 2 == 0) ? 0 : hsp / 2;
+                for (x = [xs + stagger : hsp : xe]) {
+                    translate([x, z])
+                        circle(d = hole_d, $fn = hole_fn);
+                }
+            }
+        }
+    }
+}
+
+module floor_profile_2d(iw, id) {
+    margin = hole_r + 4;
+
+    xs = -iw / 2 + margin;
+    xe =  iw / 2 - margin;
+    ys = -id / 2 + margin;
+    ye =  id / 2 - margin;
+
+    difference() {
+        square([iw, id], center = true);
+
+        cols = floor((ye - ys) / hsp + 1e-6) + 1;
+        y0   = -(cols - 1) * hsp / 2;
+
+        for (col = [0 : cols - 1]) {
+            y = y0 + col * hsp;
+            stagger = (col % 2 == 0) ? 0 : hsp / 2;
+            for (x = [xs + stagger : hsp : xe]) {
+                translate([x, y])
+                    circle(d = hole_d, $fn = hole_fn);
+            }
+        }
+    }
+}
+
+module base_edge_cutter() {
+    soften_inset = max(0,
+                       min(base_edge_inset,
+                           min(corner_r - 0.5, wall_t - 0.5)));
+    soften_h = max(base_edge_h, profile_skin * 2);
+
+    if (soften_inset > 0) {
+        difference() {
+            translate([0, 0, -profile_skin])
+                linear_extrude(height = soften_h + 2 * profile_skin)
+                    rounded_rect_2d(box_w, box_d, corner_r);
+
+            hull() {
+                rounded_rect_slice(-profile_skin,
+                                   box_w - 2 * soften_inset,
+                                   box_d - 2 * soften_inset,
+                                   corner_r - soften_inset);
+                rounded_rect_slice(soften_h - profile_skin,
+                                   box_w,
+                                   box_d,
+                                   corner_r);
+            }
+        }
+    }
+}
+
+module top_edge_cutter() {
+    soften_inset = max(0,
+                       min(top_edge_inset,
+                           corner_r - 0.5,
+                           box_w / 2 - corner_r - 0.5,
+                           box_d / 2 - corner_r - 0.5));
+    soften_h = max(top_edge_h, profile_skin * 2);
+    top_z = box_h - soften_h;
+
+    if (soften_inset > 0) {
+        difference() {
+            translate([0, 0, top_z - profile_skin])
+                linear_extrude(height = soften_h + 2 * profile_skin)
+                    rounded_rect_2d(box_w, box_d, corner_r);
+
+            hull() {
+                rounded_rect_slice(top_z,
+                                   box_w,
+                                   box_d,
+                                   corner_r);
+                rounded_rect_slice(box_h - profile_skin,
+                                   box_w - 2 * soften_inset,
+                                   box_d - 2 * soften_inset,
+                                   corner_r - soften_inset);
+            }
+        }
+    }
+}
+
+module top_brim() {
+    brim_outset = max(0,
+                      min(top_brim_outset,
+                          inner_w / 2 - 0.5,
+                          inner_d / 2 - 0.5));
+    brim_h = max(top_brim_h, 0);
+    brim_inner_w = inner_w - 2 * brim_outset;
+    brim_inner_d = inner_d - 2 * brim_outset;
+    brim_inner_r = max(0.01, inner_corner_r - brim_outset);
+
+    if (brim_outset > 0 && brim_h > 0) {
+        translate([0, 0, box_h - brim_h])
+            linear_extrude(height = brim_h)
+                difference() {
+                    rounded_rect_2d(box_w, box_d, corner_r);
+                    rounded_rect_2d(brim_inner_w, brim_inner_d, brim_inner_r);
+        }
+    }
+}
+
+module front_back_wall(y_center, w, h, margin) {
+    translate([0, y_center, h / 2])
+        rotate([90, 0, 0])
+            linear_extrude(height = wall_t, center = true)
+                wall_profile_2d(w, h, margin);
+}
+
+module side_wall_panel(x_center, w, h, margin) {
+    translate([x_center, 0, h / 2])
+        rotate([90, 0, 90])
+            linear_extrude(height = wall_t, center = true)
+                wall_profile_2d(w, h, margin);
+}
+
+module corner_posts() {
+    for (x = [-1, 1], y = [-1, 1]) {
+        translate([x * (half_w - corner_r),
+                   y * (half_d - corner_r),
+                   0])
+            linear_extrude(height = box_h)
+                scale([x, y])
+                    intersection() {
+                        difference() {
+                            circle(r = corner_r, $fn = corner_fn);
+                            circle(r = corner_r - wall_t, $fn = corner_fn);
+                        }
+                        square([corner_r + profile_skin,
+                                corner_r + profile_skin]);
+                    }
+    }
+}
+
+module inner_band() {
+    translate([0, 0, band_z - band_h / 2])
+        linear_extrude(height = band_h)
+            difference() {
+                rounded_rect_2d(inner_w, inner_d, inner_corner_r);
+                rounded_rect_2d(inner_w - 2 * band_t,
+                                inner_d - 2 * band_t, band_inner_r);
+            }
+}
+
+module floor_panel() {
+    if (bottom_holes) {
+        linear_extrude(height = wall_t, center = true)
+            floor_profile_2d(inner_w, inner_d);
+    } else {
+        cube([inner_w, inner_d, wall_t], center = true);
+    }
+}
+
+module mesh_box_body() {
+    union() {
+        corner_posts();
+
+        front_back_wall( half_d - wall_t / 2, front_w, box_h, corner_margin - corner_r);
+        front_back_wall(-half_d + wall_t / 2, front_w, box_h, corner_margin - corner_r);
+
+        side_wall_panel( half_w - wall_t / 2, side_w, box_h, corner_margin - corner_r);
+        side_wall_panel(-half_w + wall_t / 2, side_w, box_h, corner_margin - corner_r);
+
+        translate([0, 0, wall_t / 2])
+            floor_panel();
+
+        inner_band();
+    }
+}
+
+// ============================================================
+// LOCAL HELPERS
 // ============================================================
 
 // Flat outer footprint (no curved front).  z is accepted for
