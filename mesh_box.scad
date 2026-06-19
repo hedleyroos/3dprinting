@@ -87,7 +87,7 @@ corner_margin           = 12;    // No-hole keep-out from each vertical edge
 bottom_holes            = true;  // Enable mesh holes in the floor
 
 /* [Inner Band] */                // Keep in sync with mesh_box.scad
-band_t                  = 3;     // Inward projection thickness of the inner band
+band_t                  = 10;    // Inward projection thickness of the inner band
 band_h                  = 25;    // Vertical height of the band
 band_z                  = box_h / 2; // Vertical centre of the band
 
@@ -285,10 +285,13 @@ module corner_posts() {
 }
 
 module inner_band() {
+    // +0.02 on the outer dimensions ensures the band slightly
+    // overlaps the inner wall faces so CGAL fuses them into a
+    // single manifold — prevents floating regions at the split.
     translate([0, 0, band_z - band_h / 2])
         linear_extrude(height = band_h)
             difference() {
-                rounded_rect_2d(inner_w, inner_d, inner_corner_r);
+                rounded_rect_2d(inner_w + 0.02, inner_d + 0.02, inner_corner_r);
                 rounded_rect_2d(inner_w - 2 * band_t,
                                 inner_d - 2 * band_t, band_inner_r);
             }
@@ -474,6 +477,7 @@ module mesh_box_sliced_top_raw() {
 // ============================================================
 
 module mesh_box_sliced_bottom() {
+    render() {
     difference() {
         mesh_box_sliced_bottom_raw();
 
@@ -486,9 +490,11 @@ module mesh_box_sliced_bottom() {
         // Soften the outer bottom edge.
         base_edge_cutter();
     }
+    }
 }
 
 module mesh_box_sliced_top() {
+    render() {
     difference() {
         union() {
             mesh_box_sliced_top_raw();
@@ -505,6 +511,7 @@ module mesh_box_sliced_top() {
 
         // Soften the outer top edge.
         top_edge_cutter();
+    }
     }
 }
 

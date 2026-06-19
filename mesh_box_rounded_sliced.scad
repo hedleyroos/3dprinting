@@ -286,6 +286,7 @@ module mesh_box_sliced_top_raw() {
 // ============================================================
 
 module mesh_box_sliced_bottom() {
+    render() {
     difference() {
         mesh_box_sliced_bottom_raw();
 
@@ -301,9 +302,11 @@ module mesh_box_sliced_bottom() {
         // original mesh_box()).
         base_edge_cutter();
     }
+    }
 }
 
 module mesh_box_sliced_top() {
+    render() {
     difference() {
         union() {
             mesh_box_sliced_top_raw();
@@ -322,6 +325,7 @@ module mesh_box_sliced_top() {
         // inside the difference block, same pattern as the
         // original mesh_box()).
         top_edge_cutter();
+    }
     }
 }
 
