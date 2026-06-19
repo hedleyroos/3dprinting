@@ -75,8 +75,8 @@ corner_r                = 8;     // External vertical corner radius
 corner_fn               = 60;    // Corner facet count (matches parent)
 
 /* [Mesh Holes] */
-hole_d                  = 16;    // Circular hole diameter
-hole_spacing            = 22;    // Centre-to-centre hole spacing
+hole_d                  = 12;    // Circular hole diameter
+hole_spacing            = 16;    // Centre-to-centre hole spacing
 rim_top                 = 10;    // Solid band at top (no holes) — one row under brim
 rim_bottom              = 10;    // Solid band at bottom (no holes)
 
