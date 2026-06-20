@@ -90,6 +90,7 @@ bottom_holes            = true;  // Enable mesh holes in the floor
 band_t                  = 3;     // Inward projection thickness of the inner band
 band_h                  = 25;    // Vertical height of the band
 band_z                  = box_h / 2; // Vertical centre of the band
+band_slope              = 3;     // Chamfer depth on the tongue tip so it prints without support
 
 // Derived.
 half_w  = box_w / 2;
@@ -388,11 +389,42 @@ module band_ring_2d() {
 }
 
 // The lower half of the band, carried down by the TOP half as a solid
-// tongue that laps into the bottom half's socket.
+// tongue that laps into the bottom half's socket.  The inner face is
+// chamfered at the tip (band_bot) so the overhang prints without support
+// when the top half is flipped brim-down on the bed.
 module band_tongue() {
-    translate([0, 0, band_bot])
-        linear_extrude(height = slice_z_clamped - band_bot + 0.01)
-            band_ring_2d();
+    tongue_h = slice_z_clamped - band_bot;
+    slope_h  = min(band_slope, tongue_h - 0.1);
+
+    difference() {
+        // Outer face stays straight — critical for socket fit.
+        translate([0, 0, band_bot])
+            linear_extrude(height = tongue_h + 0.01)
+                rounded_rect_2d(inner_w, inner_d, inner_corner_r);
+
+        // Inner cutout: hull of three convex rects tapers the inner
+        // hollow from a smaller opening at band_bot (chamfer) up to
+        // the full-size hollow above.
+        hull() {
+            translate([0, 0, band_bot - profile_skin])
+                linear_extrude(height = profile_skin)
+                    rounded_rect_2d(max(0.1, inner_w - 2 * band_t - 2 * band_slope),
+                                    max(0.1, inner_d - 2 * band_t - 2 * band_slope),
+                                    max(0.01, band_inner_r - band_slope));
+
+            translate([0, 0, band_bot + slope_h])
+                linear_extrude(height = profile_skin)
+                    rounded_rect_2d(inner_w - 2 * band_t,
+                                    inner_d - 2 * band_t,
+                                    band_inner_r);
+
+            translate([0, 0, slice_z_clamped + 0.01])
+                linear_extrude(height = profile_skin)
+                    rounded_rect_2d(inner_w - 2 * band_t,
+                                    inner_d - 2 * band_t,
+                                    band_inner_r);
+        }
+    }
 }
 
 // Socket cut into the BOTTOM half: removes the band-region material
@@ -532,7 +564,7 @@ if (part == "bottom") {
     // Both pieces laid flat on the bed, flat-back to flat-back with
     // a 5 mm gap.  Bottom piece floor-down; top piece flipped brim-
     // down so its collar prints upward.
-    gap       = 5;
+    gap       = 15;
     half_gap  = gap / 2;
     bottom_y  = half_d + half_gap;
     top_y     = -(half_d + half_gap);
