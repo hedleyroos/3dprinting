@@ -87,7 +87,7 @@ corner_margin           = 12;    // No-hole keep-out from each vertical edge
 bottom_holes            = true;  // Enable mesh holes in the floor
 
 /* [Inner Band] */                // Keep in sync with mesh_box.scad
-band_t                  = 10;    // Inward projection thickness of the inner band
+band_t                  = 3;     // Inward projection thickness of the inner band
 band_h                  = 25;    // Vertical height of the band
 band_z                  = box_h / 2; // Vertical centre of the band
 
