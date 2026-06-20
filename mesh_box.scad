@@ -74,12 +74,13 @@ top_brim_outset         = 8;     // Horizontal overhang into the open top
 top_brim_h              = 4;     // Thickness of the top reinforcement brim
 top_edge_inset          = 3;     // Top bevel pull-in to soften the outer rim
 top_edge_h              = 4;     // Height of the softened top band
+brim_corner_r           = 12;    // Rounding on the brim's inner opening corners
 
 /* [Mesh Holes] */
 hole_d                  = 12;    // Circular hole diameter
 hole_spacing            = 16;    // Centre-to-centre hole spacing
 hole_fn                 = 30;    // Hole facet count
-rim_top                 = 10;    // Solid band at top (no holes)
+rim_top                 = 6;     // Solid band at top (no holes)
 rim_bottom              = 10;    // Solid band at bottom (no holes)
 corner_margin           = 12;    // No-hole keep-out from each vertical edge
 
@@ -90,7 +91,9 @@ bottom_holes            = true;  // Enable mesh holes in the floor
 band_t                  = 3;     // Inward projection thickness of the inner band
 band_h                  = 25;    // Vertical height of the band
 band_z                  = box_h / 2; // Vertical centre of the band
-band_slope              = 3;     // Chamfer depth on the tongue tip so it prints without support
+band_slope              = 3;     // Chamfer height on the band's TOP edge; tapers the
+                                 // inward ledge to zero so it prints self-supported when
+                                 // the top half is flipped (>= band_t gives >= 45 deg)
 
 // Derived.
 half_w  = box_w / 2;
@@ -241,7 +244,10 @@ module top_brim() {
     brim_h = max(top_brim_h, 0);
     brim_inner_w = inner_w - 2 * brim_outset;
     brim_inner_d = inner_d - 2 * brim_outset;
-    brim_inner_r = max(0.01, inner_corner_r - brim_outset);
+    brim_inner_r = max(0.01,
+                       min(brim_corner_r,
+                           brim_inner_w / 2 - 0.5,
+                           brim_inner_d / 2 - 0.5));
 
     if (brim_outset > 0 && brim_h > 0) {
         translate([0, 0, box_h - brim_h])
@@ -286,16 +292,56 @@ module corner_posts() {
 }
 
 module inner_band() {
-    // +0.02 on the outer dimensions ensures the band slightly
-    // overlaps the inner wall faces so CGAL fuses them into a
-    // single manifold — prevents floating regions at the split.
-    translate([0, 0, band_z - band_h / 2])
-        linear_extrude(height = band_h)
-            difference() {
-                rounded_rect_2d(inner_w + 0.02, inner_d + 0.02, inner_corner_r);
-                rounded_rect_2d(inner_w - 2 * band_t,
-                                inner_d - 2 * band_t, band_inner_r);
+    // +0.02 on the outer dimensions ensures the band slightly overlaps
+    // the inner wall faces so CGAL fuses them into a single manifold —
+    // prevents floating regions at the split.
+    //
+    // The band's TOP edge is chamfered over `band_slope` mm: the inward
+    // projection tapers to zero at band_top.  When the TOP half prints
+    // flipped (brim-down) band_top is where the inward ledge first
+    // appears, so this taper turns a flat overhang into a self-supporting
+    // ramp (slope >= band_t => >= 45 deg from horizontal).
+    slope = max(0, min(band_slope, band_h - 0.2));
+
+    if (slope <= 0) {
+        translate([0, 0, band_bot])
+            linear_extrude(height = band_h)
+                difference() {
+                    rounded_rect_2d(inner_w + 0.02, inner_d + 0.02, inner_corner_r);
+                    rounded_rect_2d(inner_w - 2 * band_t,
+                                    inner_d - 2 * band_t, band_inner_r);
+                }
+    } else {
+        difference() {
+            translate([0, 0, band_bot])
+                linear_extrude(height = band_h)
+                    rounded_rect_2d(inner_w + 0.02, inner_d + 0.02, inner_corner_r);
+
+            union() {
+                // Straight inner opening over the full band height: leaves
+                // the band at full `band_t` projection.
+                translate([0, 0, band_bot - 1])
+                    linear_extrude(height = band_h + 2)
+                        rounded_rect_2d(inner_w - 2 * band_t,
+                                        inner_d - 2 * band_t, band_inner_r);
+                // Localized chamfer over the TOP `slope` mm only: the cavity
+                // widens from the inner opening (at band_top - slope) out to
+                // flush-with-wall (at band_top), tapering the inward
+                // projection to zero.  Two thin slices => a frustum confined
+                // to this z-range (not a full-height ramp).
+                hull() {
+                    translate([0, 0, band_top - slope])
+                        linear_extrude(height = 0.01)
+                            rounded_rect_2d(inner_w - 2 * band_t,
+                                            inner_d - 2 * band_t, band_inner_r);
+                    translate([0, 0, band_top - 0.01])
+                        linear_extrude(height = 0.01)
+                            rounded_rect_2d(inner_w + 0.04, inner_d + 0.04,
+                                            inner_corner_r);
+                }
             }
+        }
+    }
 }
 
 module floor_panel() {
@@ -389,42 +435,11 @@ module band_ring_2d() {
 }
 
 // The lower half of the band, carried down by the TOP half as a solid
-// tongue that laps into the bottom half's socket.  The inner face is
-// chamfered at the tip (band_bot) so the overhang prints without support
-// when the top half is flipped brim-down on the bed.
+// tongue that laps into the bottom half's socket.
 module band_tongue() {
-    tongue_h = slice_z_clamped - band_bot;
-    slope_h  = min(band_slope, tongue_h - 0.1);
-
-    difference() {
-        // Outer face stays straight — critical for socket fit.
-        translate([0, 0, band_bot])
-            linear_extrude(height = tongue_h + 0.01)
-                rounded_rect_2d(inner_w, inner_d, inner_corner_r);
-
-        // Inner cutout: hull of three convex rects tapers the inner
-        // hollow from a smaller opening at band_bot (chamfer) up to
-        // the full-size hollow above.
-        hull() {
-            translate([0, 0, band_bot - profile_skin])
-                linear_extrude(height = profile_skin)
-                    rounded_rect_2d(max(0.1, inner_w - 2 * band_t - 2 * band_slope),
-                                    max(0.1, inner_d - 2 * band_t - 2 * band_slope),
-                                    max(0.01, band_inner_r - band_slope));
-
-            translate([0, 0, band_bot + slope_h])
-                linear_extrude(height = profile_skin)
-                    rounded_rect_2d(inner_w - 2 * band_t,
-                                    inner_d - 2 * band_t,
-                                    band_inner_r);
-
-            translate([0, 0, slice_z_clamped + 0.01])
-                linear_extrude(height = profile_skin)
-                    rounded_rect_2d(inner_w - 2 * band_t,
-                                    inner_d - 2 * band_t,
-                                    band_inner_r);
-        }
-    }
+    translate([0, 0, band_bot])
+        linear_extrude(height = slice_z_clamped - band_bot + 0.01)
+            band_ring_2d();
 }
 
 // Socket cut into the BOTTOM half: removes the band-region material
