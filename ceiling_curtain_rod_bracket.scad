@@ -15,35 +15,32 @@
 
 /* [Rod Fit] */
 rod_diameter            = 35;
-rod_clearance           = 1.5;
-rod_center_drop         = 70;
+rod_clearance           = 0.7;   // Snug seat for a nominal 35 mm rod (leaves margin for ABS shrinkage)
+rod_center_drop         = 85;
 
 /* [Ceiling Plate] */
 plate_length            = 30;
-plate_width             = 70;
+plate_width             = 90;
 plate_thickness         = 8;
 plate_corner_radius     = 6;
 
 /* [Mounting Holes] */
 hole_diameter           = 5.5;   // M5 clearance
-hole_spacing            = 50;
+hole_spacing            = 70;
 center_hole_enabled     = false;
 
 /* [Hook] */
 hook_width              = 30;
-hook_body_thickness     = 14;
-hook_wrap_angle         = 185;   // Open the mouth further so a 35 mm pipe can slide in more easily
-hook_tip_extension      = 8;
-hook_tip_backoff_angle  = 30;    // Tips the mouth outward instead of closing it vertically
+hook_body_thickness     = 10;   // Slimmed: ~5x safety on a 10 kg impulse (center bracket; ends carried by metal hooks)
+hook_wrap_angle         = 175;   // Open question-mark mouth; arc ends ~325 deg in a clean rounded terminus
 hook_embed_depth        = 0.3;   // Keeps the hook tied into the plate without reaching the top face
 
-/* [Reinforcement] */
-plate_root_extra        = 5;
-plate_root_drop         = 16;
-transition_join_angle   = 150;
-transition_stem_drop    = 10;
-transition_handle_drop  = 18;
-transition_extra_thickness = 2.5;
+/* [Neck] */
+transition_join_angle   = 150;   // Arc angle where the neck meets the hook
+neck_handle_top         = 24;    // Bezier handle length leaving the plate (straight down)
+neck_handle_join        = 30;    // Bezier handle length arriving at the hook (arc-tangent)
+neck_root_flare         = 5.5;   // Extra radius blended into the plate, tapering to the bar radius
+neck_flare_power        = 2.3;   // Higher = flare concentrated closer to the plate
 
 /* [View] */
 export_mode             = "print"; // assembly, print
@@ -68,13 +65,10 @@ hook_end_angle          = transition_join_angle + hook_wrap_angle;
 stem_x                  = 0;
 plate_underside_z       = -plate_thickness;
 hook_clip_top_z         = plate_underside_z + hook_embed_depth;
-stem_top_z              = plate_underside_z - hook_bar_radius + 0.6;
-transition_start_z      = stem_top_z - transition_stem_drop;
 transition_join_x       = rod_center_x + hook_centerline_radius * cos(transition_join_angle);
 transition_join_z       = -rod_center_drop + hook_centerline_radius * sin(transition_join_angle);
 transition_join_tangent_x = -sin(transition_join_angle);
 transition_join_tangent_z = cos(transition_join_angle);
-transition_handle_len   = hook_centerline_radius * 0.5;
 hole_edge_margin        = (plate_width - hole_spacing - hole_diameter) / 2;
 
 // ============================================================
@@ -115,8 +109,6 @@ function cubic_bezier_2d(p0, p1, p2, p3, t) = [
     pow(1 - t, 3) * p0[1] + 3 * pow(1 - t, 2) * t * p1[1] + 3 * (1 - t) * pow(t, 2) * p2[1] + pow(t, 3) * p3[1]
 ];
 
-function smoothstep01(t) = t * t * (3 - 2 * t);
-
 // ============================================================
 // GEOMETRY
 // ============================================================
@@ -127,59 +119,41 @@ module ceiling_plate() {
 }
 
 module hook_profile_2d() {
-    arc_steps = 32;
-    blend_steps = 16;
-    root_steps = 10;
+    arc_steps = 44;
+    neck_steps = 44;
     rod_center = [rod_center_x, -rod_center_drop];
-    root_top = [stem_x, plate_underside_z - 0.6];
-    root_bottom = [stem_x, stem_top_z - plate_root_drop];
-    root_points = [for (i = [0 : root_steps])
-        let(t = i / root_steps)
-            [stem_x, root_top[1] + (root_bottom[1] - root_top[1]) * t]];
-    blend_points = [for (i = [0 : blend_steps])
-        cubic_bezier_2d(
-            [stem_x, transition_start_z],
-            [stem_x, transition_start_z - transition_handle_drop],
-            [transition_join_x - transition_join_tangent_x * transition_handle_len,
-             transition_join_z - transition_join_tangent_z * transition_handle_len],
-            [transition_join_x, transition_join_z],
-            i / blend_steps
-        )];
+
+    // One continuous centerline: leaves the plate underside heading straight down,
+    // then sweeps into the hook arc's tangent at the join (G1 continuous with the arc).
+    neck_p0 = [stem_x, plate_underside_z + 0.2];
+    neck_join = [transition_join_x, transition_join_z];
+    neck_ts = [0, -1];
+    neck_te = [transition_join_tangent_x, transition_join_tangent_z];
+    neck_p1 = [neck_p0[0] + neck_ts[0] * neck_handle_top,
+               neck_p0[1] + neck_ts[1] * neck_handle_top];
+    neck_p2 = [neck_join[0] - neck_te[0] * neck_handle_join,
+               neck_join[1] - neck_te[1] * neck_handle_join];
+    neck_points = [for (i = [0 : neck_steps])
+        cubic_bezier_2d(neck_p0, neck_p1, neck_p2, neck_join, i / neck_steps)];
+
     arc_points = [for (i = [0 : arc_steps])
         let(angle = transition_join_angle + (hook_end_angle - transition_join_angle) * i / arc_steps)
             [rod_center[0] + hook_centerline_radius * cos(angle),
              rod_center[1] + hook_centerline_radius * sin(angle)]];
-    tip_start = arc_points[len(arc_points) - 1];
-    tip_dir = hook_end_angle + 90 - hook_tip_backoff_angle;
-    tip_end = [tip_start[0] + hook_tip_extension * cos(tip_dir),
-               tip_start[1] + hook_tip_extension * sin(tip_dir)];
 
     union() {
-        circle_segment_2d([stem_x, stem_top_z], [stem_x, transition_start_z], hook_bar_radius);
-
-        // Shape the stem root as a curved flare instead of a single straight-sided hull.
-        for (i = [0 : len(root_points) - 2])
+        // Neck: flares into the plate, tapering smoothly to the bar radius at the join.
+        for (i = [0 : len(neck_points) - 2])
             let(
-                t0 = i / max(1, len(root_points) - 1),
-                t1 = (i + 1) / max(1, len(root_points) - 1),
-                r0 = hook_bar_radius + 0.4 + plate_root_extra * (1 - smoothstep01(t0)),
-                r1 = hook_bar_radius + 0.4 + plate_root_extra * (1 - smoothstep01(t1))
+                t0 = i / (len(neck_points) - 1),
+                t1 = (i + 1) / (len(neck_points) - 1),
+                r0 = hook_bar_radius + neck_root_flare * pow(1 - t0, neck_flare_power),
+                r1 = hook_bar_radius + neck_root_flare * pow(1 - t1, neck_flare_power)
             )
-                tapered_segment_2d(root_points[i], r0, root_points[i + 1], r1);
-
-        for (i = [0 : len(blend_points) - 2])
-            let(
-                t0 = i / max(1, len(blend_points) - 1),
-                t1 = (i + 1) / max(1, len(blend_points) - 1),
-                r0 = hook_bar_radius + transition_extra_thickness * pow(1 - t0, 1.35),
-                r1 = hook_bar_radius + transition_extra_thickness * pow(1 - t1, 1.35)
-            )
-                tapered_segment_2d(blend_points[i], r0, blend_points[i + 1], r1);
+                tapered_segment_2d(neck_points[i], r0, neck_points[i + 1], r1);
 
         for (i = [0 : len(arc_points) - 2])
             circle_segment_2d(arc_points[i], arc_points[i + 1], hook_bar_radius);
-
-        circle_segment_2d(tip_start, tip_end, hook_bar_radius);
     }
 }
 
