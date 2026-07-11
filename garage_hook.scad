@@ -39,7 +39,7 @@ hole_overage           = 0.4;   // Extra drill-through beyond plate thickness
 
 /* [Split Joint] */
 socket_depth           = 5;     // Depth of the socket pocket in the base plate
-socket_clearance       = 0.35;  // Radial clearance for glue (per side)
+socket_clearance       = 0.05;  // Radial clearance for glue (per side)
 socket_bottom_gap      = 0.2;   // Extra socket depth so the tenon tip clears
 print_spacing          = 10;    // Minimum gap between parts on the print bed
 
