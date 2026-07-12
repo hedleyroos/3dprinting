@@ -41,5 +41,27 @@ For two-piece models, the exploded view places both pieces **flat on the print b
 ## Design considerations
 
 Consider the stresses a printed item may need to withstand (shear, tensile, compaction etc), and orient the
-model accordingly. We must however tr and avoid supports when printing if possible. If the stresses are
+model accordingly. We must however try and avoid supports when printing if possible. If the stresses are
 such that a single orientation will not suffice, then split the model into components that can be assembled.
+
+## Mesh quality / resolution
+
+Every `.scad` file MUST define global quality variables under a `/* [Quality] */`
+Customizer block:
+
+```openscad
+/* [Quality] */
+$fa = 1;   // Minimum angle — 1° gives max 360 facets per full circle
+$fs = 0.4; // Minimum facet edge length (mm) — matched to a 0.4 mm nozzle
+```
+
+- **Do NOT set a global `$fn`.** It locks every circle to a fixed segment count
+  regardless of size, producing faceted large curves and wasteful density on small
+  holes. OpenSCAD picks the approach that produces the fewest fragments among
+  `$fn`, `$fa`, and `$fs` — a low `$fn` cripples the adaptive pair.
+- `$fa=1; $fs=0.4;` with no `$fn` is the correct default for FDM printing with a
+  0.4 mm nozzle. It produces ~0.8 mm facets on a 90 mm diameter curve (glassy
+  smooth) while keeping small features efficient.
+- Local `$fn` overrides are allowed on specific features where a fixed polygon
+  count is intentional (e.g. `cylinder($fn=6)` for a hexagon, `sphere($fn=24)`
+  for a tiny rounding detail, or `$fn=24` on an M3 clearance hole).

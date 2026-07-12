@@ -32,7 +32,6 @@ slit_x   = 0;    // Slit centre X offset from box centre
 slit_y   = 26;   // Slit centre Y offset from box centre
 
 /* [Quality] */
-$fn      = 48;
 $fa      = 1;
 $fs      = 0.4;
 

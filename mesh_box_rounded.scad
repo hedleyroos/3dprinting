@@ -65,7 +65,6 @@ front_curve_taper_intensity = 0.95; // 0 = no taper, 1 = maximum mild top flatte
 export_mode             = "print"; // print
 
 /* [Quality] */
-$fn                     = 40;    // Global fallback
 $fa                     = 1;
 $fs                     = 0.4;
 

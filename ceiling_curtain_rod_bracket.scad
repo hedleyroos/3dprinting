@@ -48,7 +48,6 @@ show_rod_preview        = true;
 rod_preview_length      = 150;
 
 /* [Quality] */
-$fn                     = 120;
 $fa                     = 1;
 $fs                     = 0.4;
 
@@ -78,10 +77,10 @@ hole_edge_margin        = (plate_width - hole_spacing - hole_diameter) / 2;
 module rounded_rect_2d(w, h, r) {
     corner_r = min(r, w / 2 - 0.01, h / 2 - 0.01);
     hull() {
-        translate([ w / 2 - corner_r,  h / 2 - corner_r]) circle(r = corner_r, $fn = 48);
-        translate([-w / 2 + corner_r,  h / 2 - corner_r]) circle(r = corner_r, $fn = 48);
-        translate([ w / 2 - corner_r, -h / 2 + corner_r]) circle(r = corner_r, $fn = 48);
-        translate([-w / 2 + corner_r, -h / 2 + corner_r]) circle(r = corner_r, $fn = 48);
+        translate([ w / 2 - corner_r,  h / 2 - corner_r]) circle(r = corner_r);
+        translate([-w / 2 + corner_r,  h / 2 - corner_r]) circle(r = corner_r);
+        translate([ w / 2 - corner_r, -h / 2 + corner_r]) circle(r = corner_r);
+        translate([-w / 2 + corner_r, -h / 2 + corner_r]) circle(r = corner_r);
     }
 }
 
@@ -92,15 +91,15 @@ module rounded_block(w, d, h, r) {
 
 module circle_segment_2d(p0, p1, r) {
     hull() {
-        translate(p0) circle(r = r, $fn = 48);
-        translate(p1) circle(r = r, $fn = 48);
+        translate(p0) circle(r = r);
+        translate(p1) circle(r = r);
     }
 }
 
 module tapered_segment_2d(p0, r0, p1, r1) {
     hull() {
-        translate(p0) circle(r = r0, $fn = 48);
-        translate(p1) circle(r = r1, $fn = 48);
+        translate(p0) circle(r = r0);
+        translate(p1) circle(r = r1);
     }
 }
 

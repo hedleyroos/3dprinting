@@ -31,8 +31,7 @@ gusset_end_margin       = 4;
 export_mode             = "print"; // assembly, print
 
 /* [Quality] */
-$fn                     = 96;
-$fa                     = 2;
+$fa                     = 1;
 $fs                     = 0.4;
 
 // ============================================================

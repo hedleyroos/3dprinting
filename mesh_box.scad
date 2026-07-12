@@ -49,7 +49,6 @@ screws_per_side_wall  = 1;     // Screws in EACH side wall (left/right)
 part                    = "both"; // bottom | top | both | exploded
 
 /* [Quality] */
-$fn                     = 40;    // Global fallback
 $fa                     = 1;
 $fs                     = 0.4;
 

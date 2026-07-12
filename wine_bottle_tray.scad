@@ -58,9 +58,8 @@ tab_clearance   = 0.3;   // Extra gap in the slot
 part = "cushion";        // "cushion" or "pair" (two copies side by side for a fit preview)
 
 /* [Quality] */
-$fn = 64;
-$fa = 2;
-$fs = 0.5;
+$fa = 1;
+$fs = 0.4;
 
 eps = 0.02;
 

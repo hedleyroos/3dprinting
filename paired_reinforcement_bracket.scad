@@ -35,8 +35,7 @@ substrate_end_margin    = 0;
 substrate_side_margin   = 0;
 
 /* [Quality] */
-$fn                     = 96;
-$fa                     = 2;
+$fa                     = 1;
 $fs                     = 0.4;
 
 // ============================================================

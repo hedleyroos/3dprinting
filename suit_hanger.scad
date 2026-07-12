@@ -60,7 +60,6 @@ export_mode         = show_exploded_parts ? "layout" : "assembly"; // layout, as
 main_body_print_rotation = -15; // Slight in-plane rotation trims the main body width to fit a 260 mm bed
 
 /* [Quality] */
-$fn                 = 120;
 $fa                 = 1;
 $fs                 = 0.4;
 
@@ -112,20 +111,20 @@ function peg_positions() = split_peg_count <= 1
 module rounded_rect_2d(w, h, r) {
     corner_r = min(r, w / 2 - 0.01, h / 2 - 0.01);
     hull() {
-        translate([ w / 2 - corner_r,  h / 2 - corner_r]) circle(r = corner_r, $fn = 48);
-        translate([-w / 2 + corner_r,  h / 2 - corner_r]) circle(r = corner_r, $fn = 48);
-        translate([ w / 2 - corner_r, -h / 2 + corner_r]) circle(r = corner_r, $fn = 48);
-        translate([-w / 2 + corner_r, -h / 2 + corner_r]) circle(r = corner_r, $fn = 48);
+        translate([ w / 2 - corner_r,  h / 2 - corner_r]) circle(r = corner_r);
+        translate([-w / 2 + corner_r,  h / 2 - corner_r]) circle(r = corner_r);
+        translate([ w / 2 - corner_r, -h / 2 + corner_r]) circle(r = corner_r);
+        translate([-w / 2 + corner_r, -h / 2 + corner_r]) circle(r = corner_r);
     }
 }
 
 module xsec(depth, thick, round) {
     r = min(round, depth / 2 - 0.01, thick / 2 - 0.01);
     hull() {
-        translate([0,  depth / 2 - r,  thick / 2 - r]) sphere(r = r, $fn = 48);
-        translate([0, -depth / 2 + r,  thick / 2 - r]) sphere(r = r, $fn = 48);
-        translate([0,  depth / 2 - r, -thick / 2 + r]) sphere(r = r, $fn = 48);
-        translate([0, -depth / 2 + r, -thick / 2 + r]) sphere(r = r, $fn = 48);
+        translate([0,  depth / 2 - r,  thick / 2 - r]) sphere(r = r);
+        translate([0, -depth / 2 + r,  thick / 2 - r]) sphere(r = r);
+        translate([0,  depth / 2 - r, -thick / 2 + r]) sphere(r = r);
+        translate([0, -depth / 2 + r, -thick / 2 + r]) sphere(r = r);
     }
 }
 

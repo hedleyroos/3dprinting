@@ -50,7 +50,6 @@ root_fillet_radius     = 5;     // Fillet radius at the hook-back-to-plate junct
 export_mode            = "print"; // assembly | print | base | hook
 
 /* [Quality] */
-$fn                    = 120;
 $fa                    = 1;
 $fs                    = 0.4;
 
@@ -94,17 +93,17 @@ hook_print_y           = (straight_down + arc_radius + band_radius
 module rounded_rect_2d(w, h, r) {
     corner_r = min(r, w / 2 - 0.01, h / 2 - 0.01);
     hull() {
-        translate([ w / 2 - corner_r,  h / 2 - corner_r]) circle(r = corner_r, $fn = 48);
-        translate([-w / 2 + corner_r,  h / 2 - corner_r]) circle(r = corner_r, $fn = 48);
-        translate([ w / 2 - corner_r, -h / 2 + corner_r]) circle(r = corner_r, $fn = 48);
-        translate([-w / 2 + corner_r, -h / 2 + corner_r]) circle(r = corner_r, $fn = 48);
+        translate([ w / 2 - corner_r,  h / 2 - corner_r]) circle(r = corner_r);
+        translate([-w / 2 + corner_r,  h / 2 - corner_r]) circle(r = corner_r);
+        translate([ w / 2 - corner_r, -h / 2 + corner_r]) circle(r = corner_r);
+        translate([-w / 2 + corner_r, -h / 2 + corner_r]) circle(r = corner_r);
     }
 }
 
 module circle_segment_2d(p0, p1, r) {
     hull() {
-        translate(p0) circle(r = r, $fn = 48);
-        translate(p1) circle(r = r, $fn = 48);
+        translate(p0) circle(r = r);
+        translate(p1) circle(r = r);
     }
 }
 

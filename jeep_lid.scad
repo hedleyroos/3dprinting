@@ -38,9 +38,8 @@ rib_spacing      = 22;     // Spacing for the diamond pattern
 hinge_flat_depth = 40;     // Flat area at the back for the piano hinge
 
 /* [Quality] */
-$fn              = 90;
-$fa              = 2;
-$fs              = 0.5;
+$fa              = 1;
+$fs              = 0.4;
 
 // ============================================================
 // HELPERS
