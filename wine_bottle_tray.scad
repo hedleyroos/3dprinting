@@ -35,12 +35,12 @@ trough_depth    = 18;    // How deep the bottle sinks into the wave
 
 /* [Cushion] */
 cradle_len      = 160;   // Trough length along Y (bottle ends overhang)
-base_wall       = 8;     // Solid material under the deepest trough point
+base_wall       = 6;     // Solid material under the deepest trough point
 crest_fillet    = 3;     // Rounding radius of the wave crests
 rail_front_w    = 15;    // Width of the front (+Y) support rail along Y
-rail_back_w     = 35;    // Width of the back  (-Y) support rail along Y
+rail_back_w     = 25;    // Width of the back  (-Y) support rail along Y
 hand_round_r    = 2;     // Slight rounding on hand-touch external edges
-end_bar_t       = 8;     // Thickness (Z) of the end bars; interlock height tracks this
+end_bar_t       = 6;     // Thickness (Z) of the end bars; interlock height tracks this
 bar_rail_bite   = 5;     // How far the end bar reaches into each rail (fused overlap)
 
 /* [Back Lip — Bottle Retainer] */
