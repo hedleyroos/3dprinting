@@ -1,15 +1,16 @@
 // ============================================================
-// Wine Bottle Cradle — Wave Cushion, Interlocking
+// Wine Bottle Cradle — Wave Cushion, Lightweight Frame
 //
 // A smooth wave-shaped cushion that holds 3 wine bottles lying on
-// their sides in rounded troughs.  Identical copies interlock
-// end-to-end (across the bottle row) via a tab on the +X end and a
-// matching slot on the -X end, so you can chain as many as you like
-// for an "infinite" tray.  No stacking.
+// their sides in rounded troughs.  Two parallel rails (front +
+// back edges) support the bottles — the centre is open to save
+// filament.  Thin 5 mm end bars at the +X and -X ends connect the
+// rails into a rigid rectangular frame.
 //
 // The wave has rounded troughs AND rounded crests (a 2D opening
-// fillet on the cross-section), then that profile is extruded along
-// the bottle axis into half-pipe cradles.
+// fillet on the cross-section), then that profile is extruded
+// along the bottle axis into half-pipe cradles.  External edges
+// that may touch hands are slightly rounded.
 //
 // Print flat on the bed.  Designed for a Qidi Q2
 // (270 x 270 mm bed, 256 mm Z).  3 x 90 mm bottles fill the bed
@@ -35,15 +36,20 @@ trough_depth    = 18;    // How deep the bottle sinks into the wave
 cradle_len      = 180;   // Trough length along Y (bottle ends overhang)
 base_wall       = 8;     // Solid material under the deepest trough point
 crest_fillet    = 3;     // Rounding radius of the wave crests
+rail_w          = 15;    // Width of each front/back support rail along Y
+hand_round_r    = 2;     // Slight rounding on hand-touch external edges
+end_bar_t       = 8;     // Thickness (Z) of the end bars; interlock height tracks this
+bar_rail_bite   = 5;     // How far the end bar reaches into each rail (fused overlap)
 
-/* [Interlock — Tab & Slot on the X ends] */
-tab_proj        = 8;     // How far the tab sticks out (along X); body_w + tab_proj <= 270
-tab_w           = 40;    // Width of the tab (along Y)
-tab_h           = 12;    // Height of the tab (Z), bottom-anchored so it prints on the bed
-tab_clearance   = 0.3;   // Extra room in the slot for an easy fit
+/* [Interlock — Puzzle Tabs on the End Bars] */
+tab_proj        = 8;     // How far the tab sticks out in X
+tab_root_w      = 12;    // Tab width at root in Y (narrow — at the bar face)
+tab_tip_w       = 20;    // Tab width at tip in Y (wide — arrowhead locks in slot)
+tab_spacing     = 60;    // Centre-to-centre Y spacing of the two tabs
+tab_clearance   = 0.3;   // Extra gap in the slot
 
 /* [View] */
-part = "cushion";        // "cushion" or "pair" (two chained copies for a fit preview)
+part = "cushion";        // "cushion" or "pair" (two copies side by side for a fit preview)
 
 /* [Quality] */
 $fn = 64;
@@ -57,15 +63,16 @@ eps = 0.02;
 // ============================================================
 
 cradle_r  = bottle_dia / 2 + cradle_extra_r;   // 46.5
-body_w    = bottle_count * bottle_pitch;        // 258  -> outer troughs sit half a pitch from each end
-half_w    = body_w / 2;
-top_z     = base_wall + trough_depth;           // 26   top face / crest height
-z_c       = base_wall + cradle_r;               // 54.5 trough-cylinder centre height
+body_w    = bottle_count * bottle_pitch;        // 258
+half_w    = body_w / 2;                         // 129
+top_z     = base_wall + trough_depth;           // 26
+z_c       = base_wall + cradle_r;               // 54.5
+half_rail = rail_w / 2;                         // 7.5
 
-// Slot = tab + clearance (loose on all cut faces).
-slot_proj = tab_proj + tab_clearance;           // depth cut into the -X face
-slot_w    = tab_w + 2 * tab_clearance;          // along Y
-slot_h    = tab_h + tab_clearance;              // along Z
+// Slot = tab + clearance on all faces.
+slot_proj   = tab_proj + tab_clearance;
+slot_root_w = tab_root_w + 2 * tab_clearance;
+slot_tip_w  = tab_tip_w  + 2 * tab_clearance;
 
 // ============================================================
 // GEOMETRY
@@ -74,38 +81,146 @@ slot_h    = tab_h + tab_clearance;              // along Z
 // Wave cross-section in the X-Z plane, drawn as a 2D shape with
 // 2D-x = across the bottles and 2D-y = height.  A filled slab minus
 // one circle per trough, then a morphological OPENING rounds the
-// convex crests (and outer base corners) while leaving the concave
-// troughs untouched.
+// convex crests while leaving the concave troughs untouched.
+// Bottom corners are kept sharp (90°) by filling the rounded-away
+// material with small squares at each bottom corner.
 module wave_section_2d() {
-    offset(r =  crest_fillet)
-    offset(r = -crest_fillet)
-        difference() {
-            translate([-half_w, 0]) square([body_w, top_z]);
-            for (i = [-(bottle_count - 1) / 2 : (bottle_count - 1) / 2])
-                translate([i * bottle_pitch, z_c]) circle(r = cradle_r);
-        }
+    union() {
+        offset(r =  crest_fillet)
+        offset(r = -crest_fillet)
+            difference() {
+                translate([-half_w, 0]) square([body_w, top_z]);
+                for (i = [-(bottle_count - 1) / 2 : (bottle_count - 1) / 2])
+                    translate([i * bottle_pitch, z_c]) circle(r = cradle_r);
+            }
+        // Restore sharp 90° bottom corners — the double offset above
+        // rounds these inward; a crest_fillet×crest_fillet square at
+        // each corner fills the rounded-away material back in.
+        translate([-half_w, 0])               square([crest_fillet, crest_fillet]);
+        translate([ half_w - crest_fillet, 0]) square([crest_fillet, crest_fillet]);
+    }
 }
 
-// Extrude the wave profile along Y into half-pipe cradles.
-// rotate([90,0,0]) maps the extrude axis (Z) onto -Y and the
-// profile height (2D-y) onto +Z, giving a flat base at z = 0.
+// Two thin rails (front + back edges) instead of a full slab.  Each
+// rail is a short extrusion of the wave profile, with all outer edges
+// rounded for hand comfort.
+//   rotate([90,0,0]) maps the extrude axis (Z) onto -Y and the
+//   profile height (2D-y) onto +Z, giving a flat base at z = 0.
 module wave_body() {
-    rotate([90, 0, 0])
-        linear_extrude(height = cradle_len, center = true)
-            wave_section_2d();
+    for (y_sign = [-1, 1])
+        translate([0, y_sign * (cradle_len / 2 - half_rail), 0])
+            rounded_rail();
 }
 
-// Protruding tab on the +X end, anchored on the bed (z = 0 .. tab_h).
-module tab() {
-    translate([half_w + tab_proj / 2, 0, tab_h / 2])
-        cube([tab_proj, tab_w, tab_h], center = true);
+// Single rail: wave profile extruded rail_w along Y.  Top, side, and
+// vertical-corner edges are rounded by hand_round_r via minkowski for
+// hand comfort.  The bottom edge stays sharp (90°) by cutting the
+// minkowski shape flat at z = 0 and then unioning a thin sharp-bottom
+// filler that restores the correct wall position right at the bed.
+//
+// The 2D profile is inset by -hand_round_r before the minkowski so
+// the final outer envelope matches the original dimensions exactly.
+module rounded_rail() {
+
+    // Full-height minkowski-rounded shape — all edges filleted.
+    module rail_rounded_shape() {
+        minkowski() {
+            rotate([90, 0, 0])
+                linear_extrude(height = rail_w - 2 * hand_round_r, center = true)
+                    offset(r = -hand_round_r)
+                        wave_section_2d();
+            sphere(r = hand_round_r, $fn = 24);
+        }
+    }
+
+    // Sharp-bottom filler: restores full wall position and a sharp 90°
+    // bottom edge for the band z in [0, hand_round_r], but with the SAME
+    // rounded vertical corners as the minkowski shape so the corner
+    // rounding is continuous down to the bed.  The rail footprint here is
+    // a plain body_w x rail_w slab (the trough scallops start higher, at
+    // z = base_wall), so it is just a rounded rectangle.
+    module rail_sharp_bottom_shape() {
+        linear_extrude(height = hand_round_r)
+            offset(r = hand_round_r)
+                square([body_w - 2 * hand_round_r,
+                        rail_w  - 2 * hand_round_r], center = true);
+    }
+
+    // Footprint of the minkowski shape (for the bottom-cutting cube).
+    x_m = -half_w - hand_round_r;
+    y_m = -cradle_len / 2 - hand_round_r;
+
+    union() {
+        // Rounded rail with the bottom fillet sliced off at z = 0.
+        // Vertical corners stay rounded all the way down; only the
+        // horizontal bottom edge is sharpened.
+        difference() {
+            rail_rounded_shape();
+            translate([x_m, y_m, -hand_round_r])
+                cube([body_w + 2 * hand_round_r,
+                      cradle_len + 2 * hand_round_r,
+                      hand_round_r + eps]);
+        }
+        // Sharp filler restores full wall position at the bed.
+        rail_sharp_bottom_shape();
+    }
 }
 
-// Matching slot cut into the -X end.  Opens at the face and reaches
-// slightly past the tab tip so it never bottoms out.
-module slot() {
-    translate([-half_w + slot_proj / 2 - eps / 2, 0, slot_h / 2 - eps / 2])
-        cube([slot_proj + eps, slot_w, slot_h + eps], center = true);
+
+// ============================================================
+// END BARS
+// ============================================================
+
+// Flat bar (like a ruler) at each X end of the tray, laid flat on the
+// bed.  end_bar_t thick in Z, width in X matches the wave height.  Each
+// end reaches bar_rail_bite past the rail's inner face — a genuine
+// fused overlap instead of a coincident, zero-overlap touch.  All edges
+// are sharp 90°.
+module end_bar(x_sign) {
+    bar_t  = end_bar_t;   // thickness in Z (flat on the bed)
+    bar_w  = top_z;       // width in X (matches the wave profile height)
+    bar_ys = cradle_len - 2 * (rail_w - bar_rail_bite);
+
+    // +X bar spans [half_w - bar_w, half_w];  -X bar spans [-half_w, -(half_w - bar_w)]
+    bar_x0 = x_sign > 0 ? half_w - bar_w : -half_w;
+
+    translate([bar_x0, -bar_ys / 2, 0])
+        cube([bar_w, bar_ys, bar_t]);
+}
+
+// Two trapezoidal puzzle tabs on the +X end bar, flat in the X-Y
+// plane (end_bar_t tall in Z).  Protrude from the +X face; narrow at
+// the root, wider at the tip — an arrowhead / dovetail so adjacent
+// trays cannot be pulled straight apart along X.
+module interlock_tab() {
+    bar_t = end_bar_t;
+    translate([half_w, 0, 0])
+        for (y_sign = [-1, 1])
+            translate([0, y_sign * tab_spacing / 2, 0])
+                linear_extrude(height = bar_t)
+                    polygon([
+                        [0,          -tab_root_w / 2],
+                        [tab_proj,   -tab_tip_w  / 2],
+                        [tab_proj,    tab_tip_w  / 2],
+                        [0,           tab_root_w / 2],
+                    ]);
+}
+
+// Matching trapezoidal slots cut into the -X end bar.  Wider at
+// the face opening, narrower at depth — a negative of interlock_tab()
+// with clearance on all faces.
+module interlock_slot() {
+    bar_t = end_bar_t;
+    translate([-half_w, 0, -eps])
+        for (y_sign = [-1, 1])
+            translate([0, y_sign * tab_spacing / 2, 0])
+                linear_extrude(height = bar_t + 2 * eps)
+                    polygon([
+                        [0,           -slot_root_w / 2],
+                        [slot_proj,   -slot_tip_w  / 2],
+                        [slot_proj,    slot_tip_w  / 2],
+                        [0,            slot_root_w / 2],
+                    ]);
 }
 
 // ============================================================
@@ -116,9 +231,11 @@ module wine_bottle_cushion() {
     difference() {
         union() {
             wave_body();
-            tab();
+            end_bar(-1);  // -X end
+            end_bar(+1);  // +X end
+            interlock_tab();
         }
-        slot();
+        interlock_slot();
     }
 }
 
@@ -129,8 +246,8 @@ module wine_bottle_cushion() {
 if (part == "cushion") {
     wine_bottle_cushion();
 } else if (part == "pair") {
-    // Two modules chained along X (tab of the first seated in the
-    // slot of the second) to preview the seam and interlock fit.
+    // Two copies side by side — the +X tabs of the first fit into
+    // the -X slots of the second, showing the puzzle interlock.
     wine_bottle_cushion();
-    translate([body_w + tab_proj, 0, 0]) wine_bottle_cushion();
+    translate([body_w, 0, 0]) wine_bottle_cushion();
 }
