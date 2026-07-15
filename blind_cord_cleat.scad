@@ -24,11 +24,11 @@
 
 /* [Cleat] */
 cleat_width         = 14;   // Overall width (X, along the wall)
-back_height         = 44;   // Overall height (Z) = cross-bar span
+back_height         = 74;   // Overall height (Z) = cross-bar span
 plate_thickness     = 4;    // Back-plate protrusion (Y, from wall)
-neck_gap            = 9;    // Open depth behind the bar (Y) — cord passes here
-bar_thickness       = 7;    // Cross-bar depth (Y)
-neck_height         = 11;   // Central neck / standoff height (Z)
+neck_gap            = 14;    // Open depth behind the bar (Y) — cord passes here
+bar_thickness       = 6;    // Cross-bar depth (Y)
+neck_height         = 26;   // Central neck / standoff height (Z)
 plate_corner_radius = 4;    // Corner rounding on the back plate
 fillet_radius       = 3;    // Fillet at the neck junctions
 edge_round          = 0.6;  // Slight rounding on all exposed edges (finger comfort)
