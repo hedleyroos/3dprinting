@@ -12,11 +12,11 @@
 //     wrist cut is already a ring; the track is that exact ring
 //     extruded downward. The hand's underside stays OPEN.
 //
-//   Pedestal — a rectangular slab with filleted edges and a
-//     matching groove in its top face: the same ring, widened by
-//     `joint_clearance` on both faces. Printed UPSIDE DOWN (top
-//     face on the bed) so the show face gets the glassy bed
-//     finish. See the fillet caveat under Printing notes.
+//   Pedestal — a rectangular slab with a small chamfer on its
+//     edges and a matching groove in its top face: the same ring,
+//     widened by `joint_clearance` on both faces. Printed UPSIDE
+//     DOWN (top face on the bed) so the show face gets the glassy
+//     bed finish and the chamfer self-supports.
 //
 // The track drops into the groove with 0.2 mm either side and
 // registers the hand in exactly one position — no alignment jig.
@@ -62,22 +62,13 @@
 //   - The hand's first layer is the ring only, ~364 mm^2. That is
 //     the same contact the raw mesh has, but it is a slender
 //     footprint for a 90 mm tall part — use a brim.
-//   - CAVEAT, the one real cost of a fillet over a chamfer: a
-//     45 deg chamfer self-supports at any orientation, a fillet
-//     does not. Printed upside down, the TOP edge fillet lands
-//     against the bed, and a fillet leaves the bed horizontally.
-//     At r = 2 mm and 0.2 mm layers the second layer steps out
-//     0.87 mm over the first — far beyond one extrusion width, so
-//     those first few layers will droop on the show edge.
-//     Fixes, in order of preference:
-//       1. Print the pedestal RIGHT SIDE UP. The bottom edge then
-//          takes the abuse instead, the top fillet curves inward
-//          going up so it prints perfectly, and the groove opens
-//          upward and needs no bridging at all. Costs you the bed
-//          finish on the top face — iron it instead.
-//       2. Keep a chamfer on the bed-facing edge only.
-//       3. Drop to r = 0.8 or so, where the first step-out is
-//          0.55 mm and much more forgiving.
+//   - The edge treatment is a CHAMFER, not a fillet, and that is
+//     what keeps the upside-down orientation viable. 45 deg is the
+//     one profile that self-supports off a flat start. A 2 mm
+//     fillet in the same place steps out 0.87 mm between the first
+//     two 0.2 mm layers — several extrusion widths of unsupported
+//     overhang, right on the show edge. If you ever do want a
+//     rounded edge, print the pedestal right side up instead.
 //
 // Export (from /data4/projects/3dprinting):
 //   openscad -o ginos_pedestal.stl -D 'part="bottom"' ginos.scad
@@ -102,7 +93,7 @@ model_scale = 1.00;   // Uniform scale on the hand; the pedestal follows it
 pedestal_height  = 12;   // Slab thickness
 pedestal_width   = 134;  // X, mm
 pedestal_depth   = 89;   // Y, mm
-pedestal_round   = 2;    // Edge fillet radius (0 = sharp arris)
+pedestal_chamfer = 1;    // 45 deg chamfer on the top and bottom edges (0 = sharp)
 
 /* [Hand placement] */
 // Where the hand stands on the plate, measured from the plate's
@@ -215,12 +206,12 @@ groove_max = [max([for (p = groove_pts) p[0]]) + joint_clearance,
               max([for (p = groove_pts) p[1]]) + joint_clearance];
 
 // Clear top face left between the groove and each plate edge, with
-// the fillet taken off. Negative means the groove breaks out of the
+// the chamfer taken off. Negative means the groove breaks out of the
 // edge, which would ruin the joint. Order: -X, +X, -Y, +Y.
-edge_gap = [ groove_min[0] - (ped_centre[0] - pedestal_size[0] / 2 + pedestal_round),
-            (ped_centre[0] + pedestal_size[0] / 2 - pedestal_round) - groove_max[0],
-             groove_min[1] - (ped_centre[1] - pedestal_size[1] / 2 + pedestal_round),
-            (ped_centre[1] + pedestal_size[1] / 2 - pedestal_round) - groove_max[1]];
+edge_gap = [ groove_min[0] - (ped_centre[0] - pedestal_size[0] / 2 + pedestal_chamfer),
+            (ped_centre[0] + pedestal_size[0] / 2 - pedestal_chamfer) - groove_max[0],
+             groove_min[1] - (ped_centre[1] - pedestal_size[1] / 2 + pedestal_chamfer),
+            (ped_centre[1] + pedestal_size[1] / 2 - pedestal_chamfer) - groove_max[1]];
 
 // Same four edges, but to the hand's silhouette. Negative here is
 // only a styling choice — the fingers overhang the plate.
@@ -243,10 +234,10 @@ assert(min(edge_gap) >= 0,
 echo(str("pedestal ", pedestal_size[0], " x ", pedestal_size[1], " x ", pedestal_height,
          " mm | groove edge gaps [-X,+X,-Y,+Y] = ", edge_gap,
          " | hand edge gaps = ", hand_gap));
-assert(pedestal_round >= 0 && pedestal_round < pedestal_height / 2,
-       "pedestal_round must be >= 0 and less than half pedestal_height");
-assert(pedestal_round < min(pedestal_size[0], pedestal_size[1]) / 2,
-       "pedestal_round is too large for the pedestal footprint");
+assert(pedestal_chamfer >= 0 && pedestal_chamfer < pedestal_height / 2,
+       "pedestal_chamfer must be >= 0 and less than half pedestal_height");
+assert(pedestal_chamfer < min(pedestal_size[0], pedestal_size[1]) / 2,
+       "pedestal_chamfer is too large for the pedestal footprint");
 assert(recess_depth > tenon_bottom_gap && recess_depth < pedestal_height,
        "recess_depth must be deeper than tenon_bottom_gap and shallower than pedestal_height");
 
@@ -303,38 +294,30 @@ module recess() {
             base_ring(joint_clearance, joint_clearance);
 }
 
-// Rectangular slab, Z = -pedestal_height .. 0, with every edge
-// filleted at `pedestal_round`. Built as the hull of eight corner
-// spheres, which gives a true radius on all twelve edges rather
-// than the flat bevel a hull of inset plates would produce.
+// Rectangular slab, Z = -pedestal_height .. 0, with a 45 deg chamfer
+// on the top and bottom edges and sharp vertical corners.
 //
-// The vertical corners round too. At the default 2 mm on a
-// 134 x 89 plate that is visually negligible — the plate still
-// reads hard-edged and rectangular — and it avoids the spike you
-// get where a rounded horizontal edge meets a sharp corner.
+// A chamfer rather than a fillet, deliberately: printed upside down
+// the top edge lies against the bed, and 45 deg is exactly the angle
+// that self-supports off a flat start. A fillet leaves the bed
+// horizontally and droops. Kept small so it reads as a broken arris
+// rather than a bevel — it also absorbs elephant's foot on the
+// bed-facing edge, which a sharp arris would show.
+//
+// All-square construction, so unlike the sphere hull it needs no
+// correction: every face lands exactly on nominal.
 module pedestal_blank() {
-    r = pedestal_round;
+    c = pedestal_chamfer;
     translate([ped_centre[0], ped_centre[1], -pedestal_height])
-        if (r <= 0) {
-            linear_extrude(pedestal_height)
-                square(pedestal_size, center = true);
-        } else union() {
-            hull()
-                for (sx = [-1, 1], sy = [-1, 1], sz = [0, 1])
-                    translate([sx * (pedestal_size[0] / 2 - r),
-                               sy * (pedestal_size[1] / 2 - r),
-                               r + sz * (pedestal_height - 2 * r)])
-                        sphere(r);
-
-            // A faceted sphere is INSCRIBED, so the hull alone lands
-            // its flat faces r*(1-cos(180/$fn)) shy of nominal — the
-            // slab would float off the bed and sit a hair below the
-            // wrist. These three interpenetrating boxes pin all six
-            // faces exactly; the hull only supplies the rounded edges.
-            for (b = [[pedestal_size[0],         pedestal_size[1] - 2 * r, pedestal_height - 2 * r],
-                      [pedestal_size[0] - 2 * r, pedestal_size[1],         pedestal_height - 2 * r],
-                      [pedestal_size[0] - 2 * r, pedestal_size[1] - 2 * r, pedestal_height]])
-                translate([0, 0, pedestal_height / 2]) cube(b, center = true);
+        hull() {
+            linear_extrude(eps)
+                offset(delta = -c) square(pedestal_size, center = true);
+            translate([0, 0, c])
+                linear_extrude(pedestal_height - 2 * c)
+                    square(pedestal_size, center = true);
+            translate([0, 0, pedestal_height - eps])
+                linear_extrude(eps)
+                    offset(delta = -c) square(pedestal_size, center = true);
         }
 }
 
