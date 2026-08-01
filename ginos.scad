@@ -13,10 +13,11 @@
 //     extruded downward. The hand's underside stays OPEN.
 //
 //   Pedestal — a rectangular slab with a small chamfer on its
-//     edges and a matching groove in its top face: the same ring,
-//     widened by `joint_clearance` on both faces. Printed UPSIDE
-//     DOWN (top face on the bed) so the show face gets the glassy
-//     bed finish and the chamfer self-supports.
+//     edges, a matching groove in its top face (the same ring,
+//     widened by `joint_clearance` on both faces), and two lines
+//     of text engraved into the clear plate in front of the hand.
+//     Printed UPSIDE DOWN (top face on the bed) so the show face
+//     gets the glassy bed finish and the chamfer self-supports.
 //
 // The track drops into the groove with 0.2 mm either side and
 // registers the hand in exactly one position — no alignment jig.
@@ -40,8 +41,17 @@
 // Part mapping (project convention names):
 //   part="bottom"   -> pedestal, print orientation (upside down)
 //   part="top"      -> hand + tenon, print orientation (wrist down)
+//   part="text"     -> the text plug alone, in the pedestal's print
+//                      orientation, for a two-filament top face
 //   part="both"     -> assembled, for fit checking
 //   part="exploded" -> both flat on the bed, side by side
+//
+// The text is OPTIONAL as a separate colour. Print "bottom" on its
+// own and you get an engraved plate in one filament. Add "text" as
+// a second object in the slicer and the letters come out in a
+// contrasting one — the plug is generated from the same glyph
+// module as the pocket and goes through the same print-orientation
+// transform, so the two land aligned. Do NOT recentre either STL.
 //
 // Printing notes:
 //   - Neither part needs supports.
@@ -62,6 +72,14 @@
 //   - The hand's first layer is the ring only, ~364 mm^2. That is
 //     the same contact the raw mesh has, but it is a slender
 //     footprint for a 90 mm tall part — use a brim.
+//   - The text is INSET, not raised, and that is what makes it
+//     printable in this orientation. Raised letters would print as
+//     a scatter of thin islands laid straight onto the bed — easy
+//     to knock loose, and every glyph edged with elephant's foot.
+//     As a pocket the letters are voids in the first four layers,
+//     bridged shut across a stroke width, and their walls form
+//     against the bed. Letter counters (R, D, O, P) become small
+//     bed-anchored islands, all several mm across.
 //   - The edge treatment is a CHAMFER, not a fillet, and that is
 //     what keeps the upside-down orientation viable. 45 deg is the
 //     one profile that self-supports off a flat start. A 2 mm
@@ -73,6 +91,7 @@
 // Export (from /data4/projects/3dprinting):
 //   openscad -o ginos_pedestal.stl -D 'part="bottom"' ginos.scad
 //   openscad -o ginos_hand.stl     -D 'part="top"'    ginos.scad
+//   openscad -o ginos_text.stl     -D 'part="text"'   ginos.scad
 // ============================================================
 
 /* [Quality] */
@@ -80,7 +99,7 @@ $fa = 1;    // Minimum angle — 1 deg gives max 360 facets per full circle
 $fs = 0.4;  // Minimum facet edge length (mm) — matched to a 0.4 mm nozzle
 
 /* [Part to export] */
-part = "both";  // bottom | top | both | exploded
+part = "both";  // bottom | top | text | both | exploded
 
 /* [Source mesh] */
 stl_file  = "italian.stl";
@@ -91,9 +110,26 @@ model_scale = 1.00;   // Uniform scale on the hand; the pedestal follows it
 
 /* [Pedestal] */
 pedestal_height  = 12;   // Slab thickness
-pedestal_width   = 134;  // X, mm
-pedestal_depth   = 89;   // Y, mm
+pedestal_width   = 200;  // X, mm
+pedestal_depth   = 150;  // Y, mm
 pedestal_chamfer = 1;    // 45 deg chamfer on the top and bottom edges (0 = sharp)
+
+/* [Pedestal text] */
+// Engraved into the top face, in the clear plate in FRONT of the
+// hand. Inset rather than raised: printed upside down, raised text
+// would be a scatter of thin glyph islands laid straight onto the
+// bed, easy to knock off and prone to elephant's foot. As a pocket
+// the letters are voids in the first few layers instead, roofed
+// over by a short bridge, and their walls come off the bed crisp.
+text_line1     = "RESERVED";
+text_line2     = "DIE POESTE";
+text_font      = "DejaVu Sans:style=Bold";
+text_size      = 17;     // Line 1. Cap height is 1.031x this in DejaVu Bold
+text_size2_pc  = 78;     // Line 2 as a percentage of line 1
+text_spacing   = 1.12;   // Letter tracking. >1 opens the counters up
+text_line_gap  = 9;      // Clear space between the two cap bands, mm
+text_depth     = 0.8;    // 4 layers at 0.2 mm — opaque in a second filament
+text_offset    = [0, 0]; // Nudge from the auto-centred position
 
 /* [Hand placement] */
 // Where the hand stands on the plate, measured from the plate's
@@ -101,7 +137,7 @@ pedestal_chamfer = 1;    // 45 deg chamfer on the top and bottom edges (0 = shar
 // viewer). [0, 0] centres the hand's BOUNDING BOX on the plate,
 // which is what reads as centred — the wrist itself is off to one
 // side because the fingers cantilever forward.
-hand_offset = [0, 0];
+hand_offset = [0, 20];
 
 // Spin about the wrist, degrees CCW seen from above. The track and
 // the groove rotate with it, so the joint stays exact at any angle.
@@ -224,6 +260,28 @@ hand_gap = [pedestal_size[0] / 2 + hand_offset[0] - hand_size[0] / 2,
 // floor, so residual droop can never hold the hand off the top face.
 tenon_depth = recess_depth - tenon_bottom_gap;
 
+// --- Text block ------------------------------------------------
+// Cap height per unit `size`, measured off the rendered glyphs of
+// this font. OpenSCAD's `size` is not the cap height, so laying the
+// two lines out by eye would leave the block visibly off-centre.
+text_cap_ratio = 1.031;
+
+text_size2 = text_size * text_size2_pc / 100;
+text_cap1  = text_size  * text_cap_ratio;
+text_cap2  = text_size2 * text_cap_ratio;
+text_block = text_cap1 + text_line_gap + text_cap2;
+
+// The clear strip in front of the hand, from the plate's front edge
+// to the nearest point of the hand's SILHOUETTE — not its footprint.
+// Text tucked under the overhanging fingers would be in shadow and
+// half hidden, so the fingers set the limit, not the wrist.
+text_zone   = [ped_centre[1] - pedestal_depth / 2, hand_min[1]];
+text_centre = [ped_centre[0] + text_offset[0],
+               (text_zone[0] + text_zone[1]) / 2 + text_offset[1]];
+
+text_front = text_centre[1] - text_block / 2;
+text_back  = text_centre[1] + text_block / 2;
+
 // Exploded layout: pedestal left, hand right.
 explode_span = pedestal_size[0] + explode_gap + hand_size[0];
 
@@ -240,6 +298,18 @@ assert(pedestal_chamfer < min(pedestal_size[0], pedestal_size[1]) / 2,
        "pedestal_chamfer is too large for the pedestal footprint");
 assert(recess_depth > tenon_bottom_gap && recess_depth < pedestal_height,
        "recess_depth must be deeper than tenon_bottom_gap and shallower than pedestal_height");
+assert(text_depth > 0 && text_depth < pedestal_height - recess_depth,
+       "text_depth must be positive and shallower than the material under the groove");
+assert(text_front >= ped_centre[1] - pedestal_depth / 2 + pedestal_chamfer,
+       str("the text block runs off the front of the plate by ",
+           (ped_centre[1] - pedestal_depth / 2 + pedestal_chamfer) - text_front,
+           " mm — shrink text_size or deepen the pedestal."));
+assert(text_back <= groove_min[1],
+       str("the text block reaches back into the groove by ", text_back - groove_min[1],
+           " mm — shrink text_size or move the hand further back."));
+echo(str("text: line1 cap ", text_cap1, " mm, line2 cap ", text_cap2,
+         " mm, block ", text_block, " mm tall in a ", text_zone[1] - text_zone[0],
+         " mm strip | usable width ", pedestal_width - 2 * pedestal_chamfer, " mm"));
 
 // ---- Modules ------------------------------------------------
 
@@ -321,6 +391,41 @@ module pedestal_blank() {
         }
 }
 
+// Both lines, centred on the origin as a block.
+//
+// Each line is set on its BASELINE and the block is balanced using
+// the measured cap heights. valign="center" would centre on the
+// font's full em box — descender space included — and since neither
+// line has descenders both would ride visibly high.
+module text_2d() {
+    y2 = -text_block / 2;
+    y1 = y2 + text_cap2 + text_line_gap;
+
+    translate([0, y1])
+        text(text_line1, size = text_size, font = text_font,
+             halign = "center", valign = "baseline", spacing = text_spacing);
+    translate([0, y2])
+        text(text_line2, size = text_size2, font = text_font,
+             halign = "center", valign = "baseline", spacing = text_spacing);
+}
+
+// The engraving, as a solid to subtract. Runs `text_depth` down from
+// the top face and pokes `eps` above it so the cut is clean.
+module text_pocket() {
+    translate([text_centre[0], text_centre[1], -text_depth])
+        linear_extrude(text_depth + eps)
+            text_2d();
+}
+
+// The matching plug: the same glyphs, filling the pocket exactly and
+// finishing flush with the top face. Built from the same module, so
+// the two cannot drift apart.
+module text_plug() {
+    translate([text_centre[0], text_centre[1], -text_depth])
+        linear_extrude(text_depth)
+            text_2d();
+}
+
 // ---- The two printed parts, in assembled coordinates ---------
 
 module hand_part() {
@@ -334,6 +439,7 @@ module pedestal_part() {
     difference() {
         pedestal_blank();
         recess();
+        text_pocket();
     }
 }
 
@@ -345,12 +451,17 @@ module hand_printable() {
         hand_part();
 }
 
-// Flipped so the recessed top face lies on the bed, centred.
-module pedestal_printable() {
+// Flipped so the recessed top face lies on the bed, centred. The
+// plug goes through the SAME transform, so the two STLs drop into
+// the slicer already aligned — never recentre either one.
+module to_print_orientation() {
     translate([-ped_centre[0], ped_centre[1], 0])
         rotate([180, 0, 0])
-            pedestal_part();
+            children();
 }
+
+module pedestal_printable() { to_print_orientation() pedestal_part(); }
+module text_printable()     { to_print_orientation() text_plug();     }
 
 // ---- Render -------------------------------------------------
 
@@ -360,9 +471,13 @@ if (part == "bottom") {
 } else if (part == "top") {
     hand_printable();
 
+} else if (part == "text") {
+    text_printable();
+
 } else if (part == "both") {
     color("SteelBlue")  hand_part();
     color("Gainsboro")  pedestal_part();
+    color("Firebrick")  text_plug();
 
 } else if (part == "exploded") {
     assert(explode_span <= bed_size && max(pedestal_size[1], hand_size[1]) <= bed_size,
@@ -374,5 +489,5 @@ if (part == "bottom") {
 
 } else {
     assert(false, str("Unknown part: \"", part,
-                      "\" — expected bottom | top | both | exploded"));
+                      "\" — expected bottom | top | text | both | exploded"));
 }
