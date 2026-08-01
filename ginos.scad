@@ -43,6 +43,9 @@
 //   part="top"      -> hand + tenon, print orientation (wrist down)
 //   part="text"     -> the text plug alone, in the pedestal's print
 //                      orientation, for a two-filament top face
+//   part="plate_2c" -> pedestal AND plug as two separate objects,
+//                      for one two-colour 3MF. REQUIRES
+//                      --enable=lazy-union (see the render section)
 //   part="both"     -> assembled, for fit checking
 //   part="exploded" -> both flat on the bed, side by side
 //
@@ -89,9 +92,25 @@
 //     rounded edge, print the pedestal right side up instead.
 //
 // Export (from /data4/projects/3dprinting):
-//   openscad -o ginos_pedestal.stl -D 'part="bottom"' ginos.scad
-//   openscad -o ginos_hand.stl     -D 'part="top"'    ginos.scad
-//   openscad -o ginos_text.stl     -D 'part="text"'   ginos.scad
+//
+//   The hand — always its own print:
+//     openscad -o ginos_hand.stl -D 'part="top"' ginos.scad
+//
+//   Pedestal in one colour, engraving left as bare recesses:
+//     openscad -o ginos_pedestal.3mf -D 'part="bottom"' ginos.scad
+//
+//   Pedestal in two colours, ONE file (preferred). Loads into
+//   OrcaSlicer as two correctly-placed objects; select both,
+//   right-click -> Merge into one object, then assign the plug a
+//   different filament:
+//     openscad --enable=lazy-union -o ginos_plate_2c.3mf \
+//              -D 'part="plate_2c"' ginos.scad
+//
+//   Pedestal in two colours, two files, for the right-click ->
+//   Add part -> Load workflow. Both carry the same origin, so do
+//   NOT recentre either one after loading:
+//     openscad -o ginos_pedestal.3mf -D 'part="bottom"' ginos.scad
+//     openscad -o ginos_text.3mf     -D 'part="text"'   ginos.scad
 // ============================================================
 
 /* [Quality] */
@@ -99,14 +118,14 @@ $fa = 1;    // Minimum angle — 1 deg gives max 360 facets per full circle
 $fs = 0.4;  // Minimum facet edge length (mm) — matched to a 0.4 mm nozzle
 
 /* [Part to export] */
-part = "both";  // bottom | top | text | both | exploded
+part = "both";  // bottom | top | text | plate_2c | both | exploded
 
 /* [Source mesh] */
 stl_file  = "italian.stl";
 convexity = 10;   // Render hint for the concave mesh — not a geometry change
 
 /* [Model] */
-model_scale = 1.00;   // Uniform scale on the hand; the pedestal follows it
+model_scale = 1.15;   // Uniform scale on the hand; the pedestal does NOT follow it
 
 /* [Pedestal] */
 pedestal_height  = 12;   // Slab thickness
@@ -474,6 +493,16 @@ if (part == "bottom") {
 } else if (part == "text") {
     text_printable();
 
+// Pedestal and plug as TWO separate top-level objects, for a single
+// two-colour 3MF. This one is only correct when exported with
+//     openscad --enable=lazy-union ...
+// Without that flag OpenSCAD unions the top-level children, and
+// because the plug exactly fills the pocket the result is a blank
+// slab with the engraving filled in — wrong, and quietly so.
+} else if (part == "plate_2c") {
+    pedestal_printable();
+    text_printable();
+
 } else if (part == "both") {
     color("SteelBlue")  hand_part();
     color("Gainsboro")  pedestal_part();
@@ -489,5 +518,5 @@ if (part == "bottom") {
 
 } else {
     assert(false, str("Unknown part: \"", part,
-                      "\" — expected bottom | top | text | both | exploded"));
+                      "\" — expected bottom | top | text | plate_2c | both | exploded"));
 }
