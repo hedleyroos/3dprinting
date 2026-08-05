@@ -19,7 +19,7 @@
 //     Printed UPSIDE DOWN (top face on the bed) so the show face
 //     gets the glassy bed finish and the chamfer self-supports.
 //
-// The track drops into the groove with 0.2 mm either side and
+// The track drops into the groove with 0.1 mm either side and
 // registers the hand in exactly one position — no alignment jig.
 // Because the joint is a ring rather than a solid plug, BOTH
 // faces of the wall are glued: ~155 mm of joint line instead of
@@ -43,18 +43,27 @@
 //   part="top"      -> hand + tenon, print orientation (wrist down)
 //   part="text"     -> the text plug alone, in the pedestal's print
 //                      orientation, for a two-filament top face
-//   part="plate_2c" -> pedestal AND plug as two separate objects,
-//                      for one two-colour 3MF. REQUIRES
+//   part="printplate" -> the whole job on the bed as SEPARATE
+//                      objects: pedestal, text plug, hand. REQUIRES
 //                      --enable=lazy-union (see the render section)
 //   part="both"     -> assembled, for fit checking
-//   part="exploded" -> both flat on the bed, side by side
+//   part="exploded" -> the same bed layout, unioned, for previewing
 //
 // The text is OPTIONAL as a separate colour. Print "bottom" on its
-// own and you get an engraved plate in one filament. Add "text" as
-// a second object in the slicer and the letters come out in a
-// contrasting one — the plug is generated from the same glyph
-// module as the pocket and goes through the same print-orientation
-// transform, so the two land aligned. Do NOT recentre either STL.
+// own and you get an engraved plate in one filament. The plug is
+// generated from the same glyph module as the pocket and goes
+// through the same print-orientation transform, so wherever the two
+// meet they are aligned by construction. Never recentre either one.
+//
+// Note the difference between an OBJECT and a PART, because the two
+// are not interchangeable here:
+//   - the plug must be a PART of the pedestal, so the slicer can
+//     give it its own filament and handle the shared wall properly;
+//   - the hand must be its own OBJECT, so it can carry its own
+//     ironing, speed and support settings.
+// A plain lazy-union export makes everything an object, which is why
+// make_multipart_3mf.py exists — it fuses chosen objects into parts
+// and leaves the rest alone.
 //
 // Printing notes:
 //   - Neither part needs supports.
@@ -99,16 +108,18 @@
 //   Pedestal in one colour, engraving left as bare recesses:
 //     openscad -o ginos_pedestal.3mf -D 'part="bottom"' ginos.scad
 //
-//   Pedestal in two colours, ONE file (preferred). Loads into
-//   OrcaSlicer as two correctly-placed objects; select both,
-//   right-click -> Merge into one object, then assign the plug a
-//   different filament:
-//     openscad --enable=lazy-union -o ginos_plate_2c.3mf \
-//              -D 'part="plate_2c"' ginos.scad
+//   EVERYTHING, one file, one print job. Pedestal + plug as a
+//   two-part object, hand as its own object, both laid out on the
+//   bed. This is the one to use:
+//     openscad --enable=lazy-union -o /tmp/raw.3mf \
+//              -D 'part="printplate"' ginos.scad
+//     python3 make_multipart_3mf.py /tmp/raw.3mf ginos_plate.3mf \
+//              --group=1,2
+//   The intermediate is disposable. Build items are ordered
+//   1 pedestal, 2 text plug, 3 hand — hence --group=1,2.
 //
-//   Pedestal in two colours, two files, for the right-click ->
-//   Add part -> Load workflow. Both carry the same origin, so do
-//   NOT recentre either one after loading:
+//   Pedestal in two colours as two loose files, if you would rather
+//   assemble by hand with right-click -> Add part -> Load:
 //     openscad -o ginos_pedestal.3mf -D 'part="bottom"' ginos.scad
 //     openscad -o ginos_text.3mf     -D 'part="text"'   ginos.scad
 // ============================================================
@@ -118,7 +129,7 @@ $fa = 1;    // Minimum angle — 1 deg gives max 360 facets per full circle
 $fs = 0.4;  // Minimum facet edge length (mm) — matched to a 0.4 mm nozzle
 
 /* [Part to export] */
-part = "both";  // bottom | top | text | plate_2c | both | exploded
+part = "both";  // bottom | top | text | printplate | both | exploded
 
 /* [Source mesh] */
 stl_file  = "italian.stl";
@@ -128,7 +139,7 @@ convexity = 10;   // Render hint for the concave mesh — not a geometry change
 model_scale = 1.15;   // Uniform scale on the hand; the pedestal does NOT follow it
 
 /* [Pedestal] */
-pedestal_height  = 12;   // Slab thickness
+pedestal_height  = 10;   // Slab thickness
 pedestal_width   = 200;  // X, mm
 pedestal_depth   = 150;  // Y, mm
 pedestal_chamfer = 1;    // 45 deg chamfer on the top and bottom edges (0 = sharp)
@@ -163,17 +174,18 @@ hand_offset = [0, 20];
 hand_rotation = 90;
 
 /* [Joint] */
-recess_depth     = 6;   // Groove depth in the pedestal's top face
-joint_clearance  = 0.2; // Gap between track wall and groove wall, per face
+recess_depth     = 7;   // Groove depth in the pedestal's top face
+joint_clearance  = 0.1; // Gap between track wall and groove wall, per face
 tenon_bottom_gap = 0.5; // Track stops this far short of the groove floor
 //
 // NOTE: the groove is deliberately NOT offered as a through-cut.
 // Punching a closed ring through the slab would sever the core
 // inside it and drop it out as a loose piece.
 
-/* [Exploded view] */
-explode_gap = 5;    // Gap between the two parts on the bed
-bed_size    = 270;  // Printable square the exploded layout must fit
+/* [Bed layout] */
+explode_gap  = 5;      // Gap between the two parts on the bed
+explode_axis = "auto"; // auto | x | y — which way to lay them out
+bed_size     = 270;    // Printable square the layout must fit
 
 /* [Measured constants — from italian.stl, do not edit by hand] */
 stl_base_z      = 13.500;              // Z of the flat wrist cut
@@ -301,8 +313,27 @@ text_centre = [ped_centre[0] + text_offset[0],
 text_front = text_centre[1] - text_block / 2;
 text_back  = text_centre[1] + text_block / 2;
 
-// Exploded layout: pedestal left, hand right.
-explode_span = pedestal_size[0] + explode_gap + hand_size[0];
+// --- Bed layout -------------------------------------------------
+// The two parts side by side, laid out along whichever axis leaves
+// the most room. Stacking a 200 x 150 plate and the hand along X
+// needs 261 mm of a 270 mm bed; along Y the same pair needs 220 mm.
+// Picking the axis automatically keeps a brim affordable, and the
+// hand wants one.
+lay_x = [pedestal_size[0] + explode_gap + hand_size[0],
+         max(pedestal_size[1], hand_size[1])];
+lay_y = [max(pedestal_size[0], hand_size[0]),
+         pedestal_size[1] + explode_gap + hand_size[1]];
+
+lay_axis = explode_axis != "auto" ? explode_axis
+         : (max(lay_x[0], lay_x[1]) <= max(lay_y[0], lay_y[1]) ? "x" : "y");
+
+lay_size = lay_axis == "x" ? lay_x : lay_y;
+
+// Offsets applied to each part's own bed-centred print orientation.
+lay_ped  = lay_axis == "x" ? [-(lay_size[0] - pedestal_size[0]) / 2, 0]
+                           : [0, -(lay_size[1] - pedestal_size[1]) / 2];
+lay_hand = lay_axis == "x" ? [ (lay_size[0] - hand_size[0]) / 2, 0]
+                           : [0,  (lay_size[1] - hand_size[1]) / 2];
 
 assert(model_scale > 0, "model_scale must be positive");
 assert(min(edge_gap) >= 0,
@@ -482,6 +513,16 @@ module to_print_orientation() {
 module pedestal_printable() { to_print_orientation() pedestal_part(); }
 module text_printable()     { to_print_orientation() text_plug();     }
 
+// Only the bed-layout parts care whether everything fits at once, so
+// this is a module rather than a top-level assert — exporting a
+// single part must not be blocked by a layout it never uses.
+module assert_bed_fits() {
+    assert(lay_size[0] <= bed_size && lay_size[1] <= bed_size,
+           str("bed layout is ", lay_size[0], " x ", lay_size[1], " mm on a ",
+               bed_size, " mm bed. Reduce model_scale, shrink the pedestal, ",
+               "or print the two parts in separate jobs."));
+}
+
 // ---- Render -------------------------------------------------
 
 if (part == "bottom") {
@@ -493,15 +534,21 @@ if (part == "bottom") {
 } else if (part == "text") {
     text_printable();
 
-// Pedestal and plug as TWO separate top-level objects, for a single
-// two-colour 3MF. This one is only correct when exported with
+// THE ONE-SHOT PRINT PLATE. Three separate top-level objects, laid
+// out on the bed: pedestal, text plug, hand. Export with
 //     openscad --enable=lazy-union ...
-// Without that flag OpenSCAD unions the top-level children, and
-// because the plug exactly fills the pocket the result is a blank
-// slab with the engraving filled in — wrong, and quietly so.
-} else if (part == "plate_2c") {
-    pedestal_printable();
-    text_printable();
+// then run make_multipart_3mf.py --group 1,2 to fuse the pedestal
+// and plug into a single two-part object while the hand stays its
+// own object, so it can carry its own ironing / speed settings.
+//
+// WITHOUT the lazy-union flag OpenSCAD unions the three, and since
+// the plug exactly fills the pocket you get a blank slab with the
+// engraving filled in and the hand welded to it — wrong, quietly.
+} else if (part == "printplate") {
+    assert_bed_fits();
+    translate(lay_ped)  pedestal_printable();
+    translate(lay_ped)  text_printable();
+    translate(lay_hand) hand_printable();
 
 } else if (part == "both") {
     color("SteelBlue")  hand_part();
@@ -509,14 +556,12 @@ if (part == "bottom") {
     color("Firebrick")  text_plug();
 
 } else if (part == "exploded") {
-    assert(explode_span <= bed_size && max(pedestal_size[1], hand_size[1]) <= bed_size,
-           "exploded layout does not fit the bed — reduce model_scale or explode_gap");
-    translate([-explode_span / 2 + pedestal_size[0] / 2, 0, 0])
-        color("Gainsboro") pedestal_printable();
-    translate([ explode_span / 2 - hand_size[0] / 2, 0, 0])
-        color("SteelBlue") hand_printable();
+    assert_bed_fits();
+    translate(lay_ped)  color("Gainsboro") pedestal_printable();
+    translate(lay_ped)  color("Firebrick") text_printable();
+    translate(lay_hand) color("SteelBlue") hand_printable();
 
 } else {
     assert(false, str("Unknown part: \"", part,
-                      "\" — expected bottom | top | text | plate_2c | both | exploded"));
+                      "\" — expected bottom | top | text | printplate | both | exploded"));
 }
