@@ -48,7 +48,7 @@ cage_h          = 115;  // Overall cage height — should be >= bowl_depth + a f
 // Diagonals run at ±diag_angle from horizontal; keep ≥ 45° so they
 // self-support without supports when printed upright.
 strut_w         = 2.4;  // Width each lattice strut prints (≥ 2 perimeters, mm)
-cell            = 22;   // Perpendicular spacing between parallel diagonals (mm)
+cell            = 40;   // Perpendicular spacing between parallel diagonals (mm)
 diag_angle      = 45;   // Diagonal angle from horizontal (≥45 = self-supporting)
 add_verticals   = true; // Add vertical chords for full triangulation + direct columns
 rim_top         = 6;    // Solid band at top of walls — no lattice (mm)
