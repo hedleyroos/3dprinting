@@ -65,7 +65,7 @@
 
 /* [Part] */
 // holder, cap/top, base, cover, thumbscrew, assembly/both, exploded
-part = "assembly";  // [holder:Case + carrier (one part), post:Post, foot:Stabiliser foot, cap:Cap, base:Base + socket hub, cover:Base cover, thumbscrew:Thumbscrew, assembly:Assembled upright, horizontal:Laid flat, exploded:Print layout]
+part = "assembly";  // [holder:Case + carrier (one part), post:Post, foot:Stabiliser foot, clamp:Plate clamp, jaw:Clamp moving jaw, cap:Cap, base:Base + socket hub, cover:Base cover, thumbscrew:Thumbscrew, vicescrew:Vice screw, assembly:Assembled upright, horizontal:Laid flat, exploded:Print layout]
 
 /* [Case] */
 bore_d          = 13;    // Inner diameter of the tube
@@ -198,10 +198,37 @@ foot_screw_side = 180;   // Which face the foot's clamp screw sits on.  180 puts
                          // opposite the pad, so it points UP when the beam is laid
                          // flat and the pad is on the bench.
 
+/* [Plate clamp] */
+// A parallel-jaw clamp for holding flat metal horizontally: anything from a
+// 20 mm disc to a 120 mm x 40 mm plate.  The mouth is open at the front AND
+// both sides, so a plate wider than the jaws simply overhangs them.
+clamp_h         = 40;    // Sleeve height, matching the holder and the foot
+jaw_w           = 76;    // Width of the jaws across the beam
+mouth_back      = 20;    // Back wall of the mouth, from the beam axis
+mouth_front     = 48;    // Front lip of the jaws, from the beam axis
+jaw_arm_t       = 10;    // Thickness of each arm of the C
+grip_max        = 6;     // Thickest metal the jaws will take
+jaw_t           = 8;     // Moving jaw thickness
+jaw_inset       = 1;     // Clearance of the moving jaw inside the mouth
+stem_d          = 8;     // Guide stem diameter
+stem_x          = 28;    // Guide stem spacing, +/- from the centre
+stem_len        = 24;    // Guide stem length.  Must stay engaged in the arm at every
+                         // jaw position, so it also serves as an opening gauge.
+stem_clear      = 0.3;   // Per-side clearance of the stems in the arm
+grip_rib_p      = 2;     // Pitch of the grip ribs on the fixed shelf
+grip_rib_h      = 0.5;   // Height of those ribs
+body_merge      = 2;     // How far the clamp body sinks into the sleeve face
+vs_len          = 22;    // Vice screw thread length — longer than the beam screws,
+                         // because it has to cross the whole throat
+vs_boss_len     = 6;     // Vice screw boss standing above the upper arm
+
 /* [Assembly preview] */
-demo_carrier_z  = 60;    // Holder height, used only for the upright view
+demo_carrier_z  = 90;    // Holder height, used only for the upright view
 demo_holder_z   = 30;    // Holder position along the beam, laid-flat view only
 demo_foot_z     = 125;   // Foot position along the beam, laid-flat view only
+demo_clamp_z    = 20;    // Plate clamp height, upright view only
+demo_metal_t    = 3;     // Thickness of the demo workpiece drawn in the assembly
+show_workpiece  = true;  // Draw a representative plate in the assembled view
 
 /* [Magnets] */
 // Informational only — used for the capacity report echoed at render time.
@@ -362,6 +389,27 @@ tip_bare      = atan(sleeve_out / 2 / com_h);   // without the foot
 // to base, with the foot on the case's side of the holder.
 foot_min_gap  = case_h - (foot_boss_z - boss_d / 2);
 
+// --- Plate clamp ---------------------------------------------
+throat        = grip_max + jaw_t;                   // clear height of the mouth
+shelf_top     = jaw_arm_t;                          // the datum the metal rests on
+arm_lo_z      = shelf_top + throat;                 // underside of the upper arm
+arm_hi_z      = arm_lo_z + jaw_arm_t;               // top of the upper arm
+vs_boss_top   = arm_hi_z + vs_boss_len;
+vs_y          = (mouth_back + mouth_front) / 2;     // vice screw sits mid-mouth
+vs_reach      = vs_len + ts_tip_len;
+vs_hole_len   = jaw_arm_t + vs_boss_len;            // depth of the threaded hole
+
+clamp_y0      = sleeve_out / 2 - body_merge;        // body sinks into the sleeve
+jaw_half_w    = jaw_w / 2 - jaw_inset;
+jaw_y0        = mouth_back + jaw_inset;
+jaw_y1        = mouth_front - jaw_inset;
+
+// How far the screw can push the jaw below the upper arm, and therefore the
+// thinnest and thickest metal the clamp will actually close on.
+vs_stroke     = vs_reach - vs_hole_len;
+clamp_min_t   = throat - jaw_t - vs_stroke;         // 0 or less means it closes fully
+clamp_arm_reach = vs_y - sleeve_out / 2;            // cantilever the screw load acts on
+
 // --- Thumbscrew ----------------------------------------------
 ts_maj_r      = ts_major_d / 2;
 ts_min_r      = ts_maj_r - ts_depth;
@@ -424,6 +472,24 @@ assert(!scale_on || len([for (a = scale_face_angles) if ((a + 360) % 360 == bed_
        "A marked face is the one that prints against the bed — change post_print_roll or scale_face_angles.");
 assert(post_print_roll % 90 == 0,
        "post_print_roll must be a multiple of 90, or the post lands on a corner.");
+assert(vs_stroke >= grip_max,
+       "Vice screw cannot reach a closed jaw — lengthen vs_len or shorten the boss/arm.");
+assert(clamp_min_t <= 0,
+       "Vice screw runs out of stroke before the jaws close — lengthen vs_len.");
+assert(mouth_front > mouth_back + 15,
+       "Mouth is too shallow to grip anything usefully — move mouth_front out.");
+assert(mouth_back >= sleeve_out / 2 + 4,
+       "Mouth back wall is inside the sleeve — move mouth_back out.");
+assert(stem_x + stem_d / 2 < jaw_w / 2 - 2,
+       "Guide stems fall outside the moving jaw — reduce stem_x.");
+assert(stem_x - stem_d / 2 > boss_d / 2 + 2,
+       "Guide stems collide with the vice screw boss — increase stem_x.");
+assert(stem_len > arm_hi_z - (shelf_top + jaw_t) + 4,
+       "Guide stems are too short to stay engaged in the arm — lengthen stem_len.");
+assert(clamp_h >= vs_boss_top,
+       "Vice boss stands above the sleeve — raise clamp_h or shorten vs_boss_len.");
+assert(mouth_back - body_merge > boss_d / 2,
+       "Clamp body fouls the beam thumbscrew boss — move mouth_back out.");
 assert(foot_rise > foot_pad_t + 2,
        "Foot buttress must rise clear of its own pad — raise foot_rise.");
 assert(foot_rise < sleeve_out,
@@ -1045,13 +1111,111 @@ module foot() {
 }
 
 // ============================================================
+// STAND — plate clamp
+// ============================================================
+//
+// A parallel-jaw vice on a sliding sleeve, for holding flat metal
+// horizontally when the beam is upright.
+//
+// The workpiece range drives the whole layout.  A 120 mm plate is
+// wider than any sensible clamp, so the mouth has to be open at both
+// sides as well as the front — which rules out guiding the moving jaw
+// with posts beside it, and equally rules out side walls.  Putting the
+// guides BEHIND the mouth would work, but it pushes the grip zone
+// outboard and lengthens the cantilever the screw load acts through.
+//
+// So the jaw is guided by two stems that pass UP through the upper
+// arm.  The mouth is then completely unobstructed, the grip zone sits
+// as close to the beam as it can, and the cantilever stays short.
+//
+// The jaw is a separate part rather than a pad on the screw tip:
+//   * the faces stay parallel, so a plate is clamped flat instead of
+//     being tipped by a rotating pad — this rig has a millimetre scale
+//     on it, so the workpiece staying square actually matters;
+//   * nothing spins against the metal while tightening;
+//   * one central screw still grips a 20 mm disc, because the guided
+//     jaw cannot tilt away from it.
+//
+// The fixed lower shelf carries the grip ribs and the moving jaw is
+// left flat.  That is a print-orientation decision: the shelf's top
+// face points up on the bed and takes fine detail, whereas the jaw's
+// gripping face is printed against the bed and comes out flat and
+// smooth.  Uniform rib heights still define a plane, so the shelf is
+// no less of a datum for being ribbed.
+
+// Ribs across the shelf, running perpendicular to the pull-out
+// direction so they resist the metal sliding out of the mouth.
+module shelf_ribs() {
+    n = floor((mouth_front - mouth_back) / grip_rib_p);
+    for (i = [0 : n])
+        translate([0, mouth_back + i * grip_rib_p, shelf_top])
+            rotate([0, 90, 0])
+                cylinder(h = jaw_w, r = grip_rib_h, center = true, $fn = 4);
+}
+
+module plate_clamp() {
+    difference() {
+        union() {
+            // Sliding sleeve.
+            linear_extrude(clamp_h)
+                rounded_square(sleeve_out, sleeve_out, 2);
+
+            // Beam clamp boss, on the same face as the holder's.
+            clamp_boss(boss_reach, boss_len, clamp_h / 2);
+
+            // The C-frame: a solid block, hollowed into a mouth below.
+            translate([-jaw_w / 2, clamp_y0, 0])
+                cube([jaw_w, mouth_front - clamp_y0, arm_hi_z]);
+
+            // Vice screw boss on top of the upper arm.
+            translate([0, vs_y, arm_hi_z])
+                cylinder(h = vs_boss_len, d = boss_d);
+
+            shelf_ribs();
+        }
+
+        // The mouth — open at the front and at BOTH sides, so a plate
+        // wider than the jaws just overhangs them.
+        translate([-jaw_w / 2 - 1, mouth_back, shelf_top])
+            cube([jaw_w + 2, mouth_front - mouth_back + 1, throat]);
+
+        // Bore that slides on the beam, and the beam clamp thread.
+        sleeve_bore_negative(clamp_h);
+        clamp_hole(boss_reach, clamp_h / 2, ts_hole_depth);
+
+        // Threaded hole for the vice screw.
+        translate([0, vs_y, vs_boss_top])
+            rotate([180, 0, 0])
+                ts_thread_negative(vs_hole_len);
+
+        // Clearance for the jaw's guide stems.
+        for (sx = [-stem_x, stem_x])
+            translate([sx, vs_y, arm_lo_z - 1])
+                cylinder(h = jaw_arm_t + 2, d = stem_d + 2 * stem_clear);
+    }
+}
+
+// The moving jaw.  Prints face down: the gripping face comes off the
+// bed flat and smooth, and the stems rise where nothing overhangs.
+module clamp_jaw() {
+    union() {
+        translate([-jaw_half_w, jaw_y0, 0])
+            cube([2 * jaw_half_w, jaw_y1 - jaw_y0, jaw_t]);
+
+        for (sx = [-stem_x, stem_x])
+            translate([sx, vs_y, jaw_t - eps])
+                cylinder(h = stem_len + eps, d = stem_d);
+    }
+}
+
+// ============================================================
 // STAND — printed thumbscrew
 // ============================================================
 //
 // Prints head DOWN: the external thread then rises in the good
 // direction and its 43 deg flanks are self-supporting.
 
-module thumbscrew() {
+module thumbscrew(len = ts_len) {
     union() {
         // Knurled head.
         difference() {
@@ -1068,10 +1232,10 @@ module thumbscrew() {
         // Threaded shaft.
         translate([0, 0, ts_head_t])
             thread_solid(ts_min_r, ts_maj_r, ts_phi_root, ts_phi_crest,
-                         ts_len / ts_pitch, ts_pitch);
+                         len / ts_pitch, ts_pitch);
 
-        // Flat dog point that bears on the tower face.
-        translate([0, 0, ts_head_t + ts_len - eps])
+        // Flat dog point that bears on the post face, or on the moving jaw.
+        translate([0, 0, ts_head_t + len - eps])
             cylinder(h = ts_tip_len + eps, d1 = ts_tip_d, d2 = ts_tip_d - 1);
     }
 }
@@ -1094,6 +1258,21 @@ module stand_assembled(z = demo_carrier_z) {
 
     // Thumbscrew locking the post into the hub.
     clamp_screw(boss_reach, hub_boss_z);
+
+    // Plate clamp, with its jaw closed on a representative workpiece.
+    translate([0, 0, demo_clamp_z]) {
+        plate_clamp();
+
+        translate([0, 0, shelf_top + demo_metal_t]) clamp_jaw();
+
+        translate([0, vs_y, vs_boss_top + ts_head_t + (2 + demo_metal_t)])
+            rotate([180, 0, 0])
+                thumbscrew(vs_len);
+
+        if (show_workpiece)
+            translate([-60, mouth_back, shelf_top])
+                cube([120, 40, demo_metal_t]);
+    }
 
     translate([0, 0, carrier_z]) {
         holder();
@@ -1161,9 +1340,20 @@ echo(str("FOOT   ", foot_span, " x ", foot_len,
          " mm pad, flush with the holder's sleeve so both sit on the bench"));
 echo(str("FOOT   laid flat, tips at about ", tip_angle, " deg with the foot vs ",
          tip_bare, " deg on the bare sleeve alone"));
+echo(str("CLAMP  jaws ", jaw_w, " mm wide gripping ", mouth_front - mouth_back,
+         " mm deep, opening 0 to ", grip_max,
+         " mm.  A 120 mm plate overhangs the jaws by ", (120 - jaw_w) / 2,
+         " mm each side; a 20 mm disc sits well inside them"));
+echo(str("CLAMP  metal rests ", shelf_top,
+         " mm above the clamp's base, so at scale reading R its underside is at ",
+         hub_top + shelf_top, " + R mm above the bench"));
+echo(str("CLAMP  screw load acts through a ", clamp_arm_reach,
+         " mm cantilever; jaw guided on two ", stem_d,
+         " mm stems so the faces stay parallel"));
 echo(str("SCREW  M", ts_major_d, " x ", ts_pitch, " printed thumbscrew, ",
-         ts_len, " mm of thread, ", ts_head_d, " mm knurled head.  PRINT THREE: ",
-         "holder, foot, and the post lock in the hub"));
+         ts_head_d, " mm knurled head.  PRINT FOUR: three at ", ts_len,
+         " mm of thread (holder, foot, hub) and one at ", vs_len,
+         " mm for the vice"));
 echo(str("SCREW  holder and hub screws sit on face ", screw_side,
          " deg; the foot's on face ", foot_screw_side,
          " deg.  None point into the bench when the beam is laid flat"));
@@ -1209,6 +1399,18 @@ if (part == "holder" || part == "case" || part == "carrier" || part == "bottom")
 
     foot();
 
+} else if (part == "clamp") {
+
+    plate_clamp();
+
+} else if (part == "jaw") {
+
+    clamp_jaw();
+
+} else if (part == "vicescrew") {
+
+    thumbscrew(vs_len);
+
 } else if (part == "base") {
 
     base_plate();
@@ -1249,14 +1451,17 @@ if (part == "holder" || part == "case" || part == "carrier" || part == "bottom")
 
     // Every part in its print orientation, laid out on the bed.
     // Fits comfortably inside 270 x 270 mm.  Two thumbscrews.
-    translate([-58, -58, 0])  base_plate();
-    translate([ 55, -58, 0])  base_cover();
-    translate([-50,  15, 0])  foot();
-    translate([ 25,  10, 0])  holder();
-    translate([ 70,  10, cap_h]) rotate([180, 0, 0]) case_cap();
-    translate([ 70,  35, 0])  thumbscrew();
-    translate([ 70,  62, 0])  thumbscrew();
-    translate([ 70,  89, 0])  thumbscrew();
+    translate([-62, -72, 0])  base_plate();
+    translate([ 58, -72, 0])  base_cover();
+    translate([-58,  -8, 0])  foot();
+    translate([-58,  33, 0])  plate_clamp();
+    translate([ 25,  53, 0])  clamp_jaw();
+    translate([ 10,   0, 0])  holder();
+    translate([ 48,   0, cap_h]) rotate([180, 0, 0]) case_cap();
+    translate([ 85,   0, 0])  thumbscrew();
+    translate([ 85,  28, 0])  thumbscrew();
+    translate([ 85,  56, 0])  thumbscrew();
+    translate([ 85,  84, 0])  thumbscrew(vs_len);
     translate([-93, 118, post_size / 2])
         rotate([0, 90, 0]) rotate([0, 0, post_print_roll]) post();
 
