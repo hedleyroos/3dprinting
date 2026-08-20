@@ -65,7 +65,7 @@
 
 /* [Part] */
 // holder, cap/top, base, cover, thumbscrew, assembly/both, exploded
-part = "assembly";  // [holder:Case + carrier (one part), post:Post, cap:Cap, base:Base + socket hub, cover:Base cover, thumbscrew:Thumbscrew, assembly:Assembled upright, horizontal:Laid flat, exploded:Print layout]
+part = "assembly";  // [holder:Case + carrier (one part), post:Post, foot:Stabiliser foot, cap:Cap, base:Base + socket hub, cover:Base cover, thumbscrew:Thumbscrew, assembly:Assembled upright, horizontal:Laid flat, exploded:Print layout]
 
 /* [Case] */
 bore_d          = 13;    // Inner diameter of the tube
@@ -156,8 +156,20 @@ ts_clear_r      = 0.35;  // Radial clearance — larger than the cap's, because 
 boss_d          = 17;    // Diameter of the thumbscrew boss on the sleeve
 boss_len        = 8;     // How far the boss stands off the sleeve
 
+/* [Stabiliser foot] */
+foot_span       = 76;    // Total width of the foot across the beam
+foot_len        = 40;    // Length of the foot along the beam
+foot_pad_t      = 5;     // Thickness of the flat pad at its outer edges
+foot_rise       = 16;    // How far the buttress climbs the sleeve's sides
+foot_round      = 1.5;   // Corner rounding on the foot's profile
+foot_screw_side = 180;   // Which face the foot's clamp screw sits on.  180 puts it
+                         // opposite the pad, so it points UP when the beam is laid
+                         // flat and the pad is on the bench.
+
 /* [Assembly preview] */
-demo_carrier_z  = 60;    // Carrier height used only for the assembled view
+demo_carrier_z  = 60;    // Holder height, used only for the upright view
+demo_holder_z   = 30;    // Holder position along the beam, laid-flat view only
+demo_foot_z     = 125;   // Foot position along the beam, laid-flat view only
 
 /* [Magnets] */
 // Informational only — used for the capacity report echoed at render time.
@@ -284,6 +296,23 @@ carrier_z_min = hub_top;
 carrier_z_max = post_top - carrier_h;
 holder_h      = max(carrier_h, body_h);
 
+// --- Stabiliser foot -----------------------------------------
+foot_boss_z   = foot_len / 2;
+foot_half_w   = foot_span / 2;
+
+// Roughly how far the rig can be tilted, laid flat, before the case
+// takes it over: the case axis is the bulk of the mass and sits this
+// high above the bench.
+com_h         = sleeve_out / 2 + case_cy;
+tip_angle     = atan(foot_half_w / com_h);
+tip_bare      = atan(sleeve_out / 2 / com_h);   // without the foot
+
+// The foot's clamp boss stands off the SAME side of the beam as the
+// case does, so the two cannot be slid on top of one another.  This
+// is how far apart along the beam they have to stay: measured base
+// to base, with the foot on the case's side of the holder.
+foot_min_gap  = case_h - (foot_boss_z - boss_d / 2);
+
 // --- Thumbscrew ----------------------------------------------
 ts_maj_r      = ts_major_d / 2;
 ts_min_r      = ts_maj_r - ts_depth;
@@ -334,6 +363,17 @@ assert(hub_wall >= 3,
        "Too little meat around the socket for the clamp thread — widen hub_size.");
 assert(post_free > carrier_h + 20,
        "Post barely projects from the hub — lengthen post_len.");
+assert(foot_rise > foot_pad_t + 2,
+       "Foot buttress must rise clear of its own pad — raise foot_rise.");
+assert(foot_rise < sleeve_out,
+       "Foot buttress climbs past the top of the sleeve — lower foot_rise.");
+assert(foot_span > sleeve_out + 20,
+       "Foot is no wider than the sleeve it replaces, so it stabilises nothing.");
+assert(tip_angle > 25,
+       "Foot is too narrow for how high the case sits — widen foot_span.");
+assert(demo_foot_z - demo_holder_z >= foot_min_gap
+       || demo_holder_z - demo_foot_z >= foot_len,
+       "Preview places the foot's boss inside the case — separate demo_foot_z and demo_holder_z.");
 assert(abs(screw_side) == 90 || screw_side == 0,
        "screw_side should be 0, 90 or -90 so the boss lands square on a face.");
 assert(plate_ceiling >= 2.5,
@@ -741,26 +781,45 @@ module base_cover() {
 // A thumbscrew clamp station.  `reach` is the distance from the
 // clamped axis out to the boss's outer face, so the holder and the
 // socket hub can share one screw by sharing one reach.
-module clamp_boss(reach, len, z) {
-    rotate([0, 0, screw_side])
+module clamp_boss(reach, len, z, side = screw_side) {
+    rotate([0, 0, side])
         translate([0, -reach, z])
             rotate([-90, 0, 0])
                 cylinder(h = len + 2, d = boss_d);
 }
 
-module clamp_hole(reach, z, depth) {
-    rotate([0, 0, screw_side])
+module clamp_hole(reach, z, depth, side = screw_side) {
+    rotate([0, 0, side])
         translate([0, -reach, z])
             rotate([-90, 0, 0])
                 ts_thread_negative(depth);
 }
 
 // Places a thumbscrew where it clamps, for the assembled views.
-module clamp_screw(reach, z) {
-    rotate([0, 0, screw_side])
+module clamp_screw(reach, z, side = screw_side) {
+    rotate([0, 0, side])
         translate([0, -reach - ts_head_t - ts_clamp_gap, z])
             rotate([-90, 0, 0])
                 thumbscrew();
+}
+
+// Everything a sliding sleeve of height h has to remove: the square
+// bore, chamfered at both ends so it starts onto the post easily and
+// does not scrape as it slides.  Shared by the holder and the foot.
+module sleeve_bore_negative(h) {
+    translate([0, 0, -eps])
+        linear_extrude(h + 2 * eps)
+            square(sleeve_in, center = true);
+
+    translate([0, 0, -eps])
+        linear_extrude(sleeve_ch + eps,
+                       scale = sleeve_in / (sleeve_in + 2 * sleeve_ch))
+            square(sleeve_in + 2 * sleeve_ch, center = true);
+
+    translate([0, 0, h - sleeve_ch])
+        linear_extrude(sleeve_ch + eps,
+                       scale = (sleeve_in + 2 * sleeve_ch) / sleeve_in)
+            square(sleeve_in, center = true);
 }
 
 // Female thread for the thumbscrew, as a cutter along +Z with
@@ -805,25 +864,67 @@ module holder() {
                     case_body();
         }
 
-        // Bore that slides on the tower.
-        translate([0, 0, -eps])
-            linear_extrude(carrier_h + 2 * eps)
-                square(sleeve_in, center = true);
+        sleeve_bore_negative(carrier_h);
 
         // Threaded hole for the thumbscrew.
         clamp_hole(boss_reach, boss_z, ts_hole_depth);
+    }
+}
 
-        // Chamfer both ends of the sleeve bore, so it starts onto
-        // the tower easily and does not scrape as it slides.
-        translate([0, 0, -eps])
-            linear_extrude(sleeve_ch + eps,
-                           scale = sleeve_in / (sleeve_in + 2 * sleeve_ch))
-                square(sleeve_in + 2 * sleeve_ch, center = true);
+// ============================================================
+// STAND — stabiliser foot
+// ============================================================
+//
+// Laid flat, the rig rests on a strip only as wide as a sleeve, with
+// the loaded case sitting well above it — so it rolls over easily.
+// This is the same sliding-sleeve-plus-thumbscrew clamp as the
+// holder, but instead of a case it carries a buttressed pad that
+// spreads sideways.
+//
+// The pad's underside is deliberately flush with the sleeve's own
+// bottom face, which is the same plane the holder's sleeve rests on.
+// So the rig sits on two coplanar patches spread along the beam:
+// wide across, and supported fore and aft.
+//
+// Its clamp screw sits opposite the pad, so it points straight UP
+// when the beam is laid flat and the pad is on the bench.
+//
+// Prints exactly like the holder — sleeve axis vertical.  The whole
+// body is one constant cross-section extruded along that axis, so
+// there is not a single overhang in it.
 
-        translate([0, 0, carrier_h - sleeve_ch])
-            linear_extrude(sleeve_ch + eps,
-                           scale = (sleeve_in + 2 * sleeve_ch) / sleeve_in)
-                square(sleeve_in, center = true);
+module foot_profile_2d() {
+    hw = foot_span / 2;
+    sh = sleeve_out / 2;
+
+    // Shrink-then-grow rounds the convex corners and leaves the flat
+    // bottom flat.
+    offset(r = foot_round) offset(r = -foot_round)
+        polygon([
+            [-hw, -sh],
+            [ hw, -sh],
+            [ hw, -sh + foot_pad_t],
+            [ sh, -sh + foot_rise],
+            [-sh, -sh + foot_rise],
+            [-hw, -sh + foot_pad_t]
+        ]);
+}
+
+module foot() {
+    difference() {
+        union() {
+            linear_extrude(foot_len)
+                rounded_square(sleeve_out, sleeve_out, 2);
+
+            linear_extrude(foot_len)
+                foot_profile_2d();
+
+            clamp_boss(boss_reach, boss_len, foot_boss_z, foot_screw_side);
+        }
+
+        sleeve_bore_negative(foot_len);
+
+        clamp_hole(boss_reach, foot_boss_z, ts_hole_depth, foot_screw_side);
     }
 }
 
@@ -928,11 +1029,19 @@ echo(str("HOLDER case and sleeve are ONE part, ", holder_h,
          " mm wide lens, ", carrier_h, " mm of height"));
 echo(str("HOLDER thinnest section (post bore to case bore): ", web_min,
          " mm; case clears the post by ", post_gap, " mm above the sleeve"));
+echo(str("FOOT   ", foot_span, " x ", foot_len,
+         " mm pad, flush with the holder's sleeve so both sit on the bench"));
+echo(str("FOOT   laid flat, tips at about ", tip_angle, " deg with the foot vs ",
+         tip_bare, " deg on the bare sleeve alone"));
 echo(str("SCREW  M", ts_major_d, " x ", ts_pitch, " printed thumbscrew, ",
-         ts_len, " mm of thread, ", ts_head_d, " mm knurled head.  PRINT TWO: ",
-         "one clamps the holder, one locks the post in the hub"));
-echo(str("SCREW  both sit on the same face (screw_side = ", screw_side,
-         " deg), clear of the bench when the post is laid flat"));
+         ts_len, " mm of thread, ", ts_head_d, " mm knurled head.  PRINT THREE: ",
+         "holder, foot, and the post lock in the hub"));
+echo(str("SCREW  holder and hub screws sit on face ", screw_side,
+         " deg; the foot's on face ", foot_screw_side,
+         " deg.  None point into the bench when the beam is laid flat"));
+echo(str("FOOT   keep it at least ", foot_min_gap,
+         " mm along the beam from the holder's base — its boss shares the",
+         " case's side of the beam"));
 
 if (magnet_d > bore_d - 0.4)
     echo(str("WARNING: magnet_d ", magnet_d, " mm is a tight/interference fit in a ",
@@ -966,6 +1075,10 @@ if (part == "holder" || part == "case" || part == "carrier" || part == "bottom")
         rotate([0, 90, 0])
             post();
 
+} else if (part == "foot") {
+
+    foot();
+
 } else if (part == "base") {
 
     base_plate();
@@ -988,10 +1101,17 @@ if (part == "holder" || part == "case" || part == "carrier" || part == "bottom")
         rotate([0, 0, 90]) rotate([90, 0, 0]) {
             post();
 
-            translate([0, 0, socket_depth + 20]) {
+            translate([0, 0, demo_holder_z]) {
                 holder();
                 translate([0, case_cy, neck_z0]) rotate([0, 0, 180]) case_cap();
                 clamp_screw(boss_reach, boss_z);
+            }
+
+            // Stabiliser further along the beam, so the rig is
+            // supported fore and aft as well as spread sideways.
+            translate([0, 0, demo_foot_z]) {
+                foot();
+                clamp_screw(boss_reach, foot_boss_z, foot_screw_side);
             }
         }
 
@@ -999,13 +1119,15 @@ if (part == "holder" || part == "case" || part == "carrier" || part == "bottom")
 
     // Every part in its print orientation, laid out on the bed.
     // Fits comfortably inside 270 x 270 mm.  Two thumbscrews.
-    translate([-60, -58, 0])  base_plate();
+    translate([-58, -58, 0])  base_plate();
     translate([ 55, -58, 0])  base_cover();
-    translate([-60,  25, 0])  holder();
-    translate([  5,  40, cap_h]) rotate([180, 0, 0]) case_cap();
-    translate([ 40,  40, 0])  thumbscrew();
-    translate([ 68,  40, 0])  thumbscrew();
-    translate([-89,  78, post_size / 2]) rotate([0, 90, 0]) post();
+    translate([-50,  15, 0])  foot();
+    translate([ 25,  10, 0])  holder();
+    translate([ 70,  10, cap_h]) rotate([180, 0, 0]) case_cap();
+    translate([ 70,  35, 0])  thumbscrew();
+    translate([ 70,  62, 0])  thumbscrew();
+    translate([ 70,  89, 0])  thumbscrew();
+    translate([-89, 118, post_size / 2]) rotate([0, 90, 0]) post();
 
 } else {  // "assembly" / "both"
 
