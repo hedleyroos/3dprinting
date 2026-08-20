@@ -110,12 +110,16 @@ snap_d          = 0.45;  // Depth of the cover's retaining snap rib
 
 /* [Post] */
 post_size       = 20;    // Square post, across the flats
-post_len        = 178;   // TOTAL length of the printed post, socketed part included
+post_len        = 186;   // TOTAL length of the printed post, socketed part included.
+                         // Sized so the engraved scale numbers run a clean 0..150.
 post_edge_ch    = 0.8;   // Chamfer along the post's four long edges.  Absorbs the
                          // elephant's foot from printing it lying down, and keeps
                          // the corners from binding in the square socket.
 post_end_ch     = 1.5;   // Chamfer on BOTH ends — the post is symmetric, so either
                          // end can go into the socket
+post_print_roll = 90;    // Roll about its own axis when laid down to print, so that
+                         // an UNMARKED face is the one on the bed.  Engraving the
+                         // face that meets the PEI sheet would only smear it.
 
 /* [Socket] */
 hub_size        = 30;    // Square socket hub standing on the base plate
@@ -124,6 +128,34 @@ hub_flare       = 8;     // 45 deg gusset where the hub meets the plate
 hub_ch          = 1.5;   // Chamfer at the top of the hub
 socket_clear    = 0.3;   // Per-side clearance of the post in the socket
 socket_sink     = 8;     // How far the socket reaches down into the plate
+
+/* [Ruler] */
+// A millimetre scale engraved along the beam, zeroed where the post leaves
+// the hub — so a reading IS the height above the hub top, with no arithmetic.
+// The buried 28 mm carries no marks, which also shows at a glance which end
+// goes into the socket.
+scale_on        = true;  // Engrave the scale at all
+// Which faces carry the scale, as angles about the beam axis:
+//   0   = the case side      (the case partly blocks it)
+//   90  = one side face      }  clear in BOTH the upright and the
+//   270 = the other side face }  laid-flat orientations
+//   180 = the back           (against the bench when laid flat)
+// The two side faces are the pair that stays readable either way up.
+scale_face_angles = [90, 270];
+scale_step      = 1;     // Graduation interval, mm.  1 mm is at the limit of what a
+                         // 0.4 mm nozzle resolves — raise to 2 if it prints mushy.
+tick_minor      = 2.5;   // Length of a plain graduation, measured across the face
+tick_medium     = 4.5;   // Length of every 5th
+tick_major      = 7;     // Length of every 10th
+tick_w_minor    = 0.5;   // Groove width along the beam
+tick_w_major    = 0.9;   // Groove width for the 5s and 10s, so they read at a glance
+tick_deep       = 0.5;   // Groove depth
+scale_numbers   = true;  // Engrave a number at every 10 mm
+num_size        = 4;     // Text height
+num_gap         = 1.5;   // Gap between a major tick and its number, across the face
+num_lift        = 0.5;   // Gap between a major tick and its number, along the beam.
+                         // Numbers sit just ABOVE their tick rather than straddling
+                         // it, so the 0 is not half-swallowed by the hub.
 
 /* [Holder] */
 screw_side      = 90;    // Which face both clamp screws sit on, degrees about Z.
@@ -260,6 +292,17 @@ socket_z0     = plate_h - socket_sink;              // socket floor
 post_free     = post_len - socket_depth;            // length left standing proud
 post_top      = hub_top + post_free;
 
+// --- Ruler ---------------------------------------------------
+post_flat     = post_size - 2 * post_edge_ch;       // usable width of one face
+
+// Which face ends up against the bed, given the print roll.  Laying the
+// post down maps beam-local +X downward; rolling by R turns that into
+// the face at (270 - R).
+bed_face      = (270 - post_print_roll + 360) % 360;
+scale_span    = floor(post_free - post_end_ch);     // last graduation
+num_max       = floor((scale_span - num_lift - num_size) / 10) * 10;  // last number that fits
+
+
 // --- Carrier -------------------------------------------------
 sleeve_in     = post_size + 2 * slide_clear;
 sleeve_out    = sleeve_in + 2 * sleeve_wall;
@@ -295,6 +338,12 @@ hub_hole_depth = hub_boss_len + hub_wall + 1;
 carrier_z_min = hub_top;
 carrier_z_max = post_top - carrier_h;
 holder_h      = max(carrier_h, body_h);
+
+// The scale runs the length of the post, but only this much of it is
+// reachable by a holder — above that the sleeve would overhang the end.
+// Defined here rather than with the other ruler values because it
+// depends on the travel worked out just above.
+scale_usable  = carrier_z_max - hub_top;
 
 // --- Stabiliser foot -----------------------------------------
 foot_boss_z   = foot_len / 2;
@@ -363,6 +412,18 @@ assert(hub_wall >= 3,
        "Too little meat around the socket for the clamp thread — widen hub_size.");
 assert(post_free > carrier_h + 20,
        "Post barely projects from the hub — lengthen post_len.");
+assert(!scale_on || tick_major < post_flat - 2,
+       "Major ticks are wider than the beam's face — shorten tick_major.");
+assert(!scale_on || !scale_numbers || num_lift + num_size < 10 * scale_step,
+       "Numbers are taller than the gap between the ticks they label — shrink num_size.");
+assert(!scale_on || !scale_numbers || tick_major + num_gap + num_size * 2.2 < post_flat,
+       "No room left on the face for the numbers — shorten tick_major or num_size.");
+assert(!scale_on || tick_w_major < scale_step * 5,
+       "Major graduation grooves are wider than their spacing.");
+assert(!scale_on || len([for (a = scale_face_angles) if ((a + 360) % 360 == bed_face) 1]) == 0,
+       "A marked face is the one that prints against the bed — change post_print_roll or scale_face_angles.");
+assert(post_print_roll % 90 == 0,
+       "post_print_roll must be a multiple of 90, or the post lands on a corner.");
 assert(foot_rise > foot_pad_t + 2,
        "Foot buttress must rise clear of its own pad — raise foot_rise.");
 assert(foot_rise < sleeve_out,
@@ -624,6 +685,60 @@ module case_cap() {
 // to hollow a 150 mm column than modelled walls, which would
 // slice as 100 % perimeter.  Solid also gives the thumbscrew a
 // proper bearing face instead of a thin wall to dent.
+// ============================================================
+// POST RULER
+// ============================================================
+//
+// Engraved, not raised: a proud scale would foul the sleeves that
+// slide over it, whereas grooves simply add local clearance.
+//
+// Zero sits at socket_depth from the socketed end, so with the post
+// fitted, a reading taken at a sleeve's lower edge IS that sleeve's
+// height above the hub top.
+//
+// Every 5th and 10th graduation is cut wider as well as longer, so
+// the eye can index the scale without counting — which matters at
+// 1 mm pitch, where a 0.4 mm nozzle leaves only a thin ridge between
+// neighbouring grooves.
+
+function tick_len(v) = (round(v) % 10 == 0) ? tick_major
+                     : (round(v) %  5 == 0) ? tick_medium
+                     :                        tick_minor;
+
+function tick_wid(v) = (round(v) % 5 == 0) ? tick_w_major : tick_w_minor;
+
+// One face's worth of scale, drawn in 2D: the 2D x axis runs across
+// the face, the 2D y axis runs along the beam.
+module scale_face_2d() {
+    for (n = [0 : floor(scale_span / scale_step)])
+        let (v = n * scale_step)
+            translate([-post_flat / 2, socket_depth + v - tick_wid(v) / 2])
+                square([tick_len(v), tick_wid(v)]);
+
+    if (scale_numbers)
+        for (v = [0 : 10 : num_max])
+            translate([-post_flat / 2 + tick_major + num_gap,
+                       socket_depth + v + num_lift])
+                text(str(v), size = num_size, halign = "left", valign = "baseline");
+}
+
+// Lift that onto the requested faces and sink it into the surface.
+//
+// The rotation matters: linear_extrude puts a glyph's readable face on
+// the side it extrudes TOWARDS, so extruding straight into the post
+// would engrave the numbers back to front.  rotate([0,0,180]) after
+// rotate([90,0,0]) turns the extrusion outward again, leaving the text
+// readable from outside while the solid still occupies the groove.
+module scale_cut() {
+    for (a = scale_face_angles)
+        rotate([0, 0, a])
+            translate([0, post_size / 2 - tick_deep, 0])
+                rotate([0, 0, 180])
+                    rotate([90, 0, 0])
+                        linear_extrude(tick_deep + eps)
+                            scale_face_2d();
+}
+
 // The post: a plain square bar, chamfered along its length and at
 // BOTH ends, so either end can drop into the socket.  Modelled with
 // z = 0 at one end; the render section lays it on its side, which is
@@ -660,6 +775,7 @@ module post() {
     difference() {
         post_blank();
         post_edge_chamfers();
+        if (scale_on) scale_cut();
     }
 }
 
@@ -1016,6 +1132,18 @@ echo(str("POST   ", post_size, " mm square x ", post_len,
          post_free, " mm stands proud.  Overall height ", post_top, " mm"));
 echo(str("POST   removable: one thumbscrew in the hub.  Up to ",
          floor(post_free / carrier_h), " holders fit on the free length"));
+
+if (scale_on)
+    echo(str("RULER  ", scale_step, " mm graduations, 0 to ", scale_span,
+             ", numbered to ", num_max, ", on faces ", scale_face_angles,
+             " (the bed face, ", bed_face, ", is left blank).",
+             "  Zero is at the hub top: read at a sleeve's lower edge and",
+             " the case floor sits that reading + ", hub_top, " mm above the bench"));
+
+if (scale_on)
+    echo(str("RULER  a holder can reach 0 to ", scale_usable,
+             " on the scale; marks above that are for laying out work, not for",
+             " the holder, which would overhang the end of the beam"));
 echo(str("STAND  fill cavity ", cav_volume,
          " cm3  ~=  ", round(cav_volume * 1.6), " g of sand, ",
          round(cav_volume * 6.5), " g of lead shot"));
@@ -1070,10 +1198,12 @@ if (part == "holder" || part == "case" || part == "carrier" || part == "bottom")
 
 } else if (part == "post") {
 
-    // Print orientation: lying on one face.
+    // Print orientation: lying on one face, rolled so the bed gets an
+    // unmarked face.
     translate([0, 0, post_size / 2])
         rotate([0, 90, 0])
-            post();
+            rotate([0, 0, post_print_roll])
+                post();
 
 } else if (part == "foot") {
 
@@ -1127,7 +1257,8 @@ if (part == "holder" || part == "case" || part == "carrier" || part == "bottom")
     translate([ 70,  35, 0])  thumbscrew();
     translate([ 70,  62, 0])  thumbscrew();
     translate([ 70,  89, 0])  thumbscrew();
-    translate([-89, 118, post_size / 2]) rotate([0, 90, 0]) post();
+    translate([-93, 118, post_size / 2])
+        rotate([0, 90, 0]) rotate([0, 0, post_print_roll]) post();
 
 } else {  // "assembly" / "both"
 
