@@ -27,9 +27,16 @@
 // layer lines run across the walls rather than along the joint.
 //
 // Print two and use them as a pair, one gripping the top of the beams
-// and one the bottom. They are the same part: turn the lower one over
-// about the diagonal of its own corner and its grooves land back on the
-// same two beams. See part = "pair".
+// and one the bottom. Turn the lower one over about the diagonal of its
+// own corner and its grooves land back on the same two beams. See
+// part = "pair".
+//
+// Note that turning it over is the ONLY way to invert it and still land
+// on the same beams, and that rotation swaps the two arms. So anything
+// asymmetric between the arms — see t_relief — swaps over with it, and
+// the two halves of a pair are then not the same print.
+//
+// It does T joints as well as L joints; see t_relief.
 //
 // Standalone — no external dependencies.
 //
@@ -40,15 +47,27 @@
 beam_a_width  = 38;   // Width of beam A, measured across the X arm
 beam_b_width  = 38;   // Width of beam B, measured across the Y arm
 beam_depth    = 220;  // Beam depth — the dimension the walls reach down
-groove_depth  = 30;   // How far the walls reach down the beam sides
+groove_depth  = 20;   // How far the walls reach down the beam sides
 clearance     = 0.8;  // Slip fit added to each groove width
 
 /* [Jig] */
-arm_length      = 180;  // Length of each arm, from the outer corner
-plate_thickness = 8;    // Top plate thickness
-wall_thickness  = 8;    // Wall thickness
+arm_length      = 150;  // Length of each arm, from the outer corner
+plate_thickness = 5;    // Top plate thickness
+wall_thickness  = 5;    // Wall thickness
 fillet_radius   = 4;    // Fillet at the root of every wall
 lead_in         = 2;    // Chamfer flaring the mouth of the grooves
+
+/* [T Joint] */
+// Gap the outer wall where it crosses a groove, so that beam can run
+// straight on through the corner instead of ending at it — which turns
+// the L jig into a T jig. The plate is untouched: it passes over the
+// through beam, so the jig loses no stiffness.
+//   "none" — L joint only, both outer walls continuous
+//   "a"    — beam A runs through, beam B butts into it
+//   "b"    — beam B runs through, beam A butts into it
+//   "both" — either. The ONLY setting where a top-and-bottom pair of the
+//            same printed part both open the same way — see part = "pair"
+t_relief = "a";  // [none, a, b, both]
 
 /* [Fixings] */
 screw_holes    = false;  // Holes through the walls for temporary screws
@@ -86,6 +105,8 @@ assert(groove_depth > fillet_radius + lead_in,
 // between them they must not meet in the middle.
 assert(2 * groove_depth < beam_depth,
        "groove_depth must be under half beam_depth, or a top and bottom jig collide");
+assert(t_relief == "none" || t_relief == "a" || t_relief == "b" || t_relief == "both",
+       "t_relief must be none, a, b or both");
 
 // ============================================================
 // 2D OUTLINES
@@ -202,6 +223,30 @@ module wall_fillets() {
         fillet_prism(al - ga, r);
 }
 
+// Gaps cut through the outer wall — and its root fillet — where a beam
+// runs on through the corner. Cut to exactly z = 0, so the plate above
+// is left whole.
+module t_relief_cuts() {
+    fr = fillet_radius;
+
+    // Across the end of the X arm's groove, freeing beam A.
+    if (t_relief == "a" || t_relief == "both")
+        translate([-wt - fr - 1, 0, -groove_depth - 1])
+            cube([wt + fr + 1, ga, groove_depth + 1]);
+
+    // Across the end of the Y arm's groove, freeing beam B.
+    if (t_relief == "b" || t_relief == "both")
+        translate([0, -wt - fr - 1, -groove_depth - 1])
+            cube([gb, wt + fr + 1, groove_depth + 1]);
+
+    // With both grooves freed, the block where the two outer walls used
+    // to meet is left touching neither beam and hanging off the plate on
+    // its own — a spindly stub that would only snap off. Take it away.
+    if (t_relief == "both")
+        translate([-wt - fr - 1, -wt - fr - 1, -groove_depth - 1])
+            cube([wt + fr + 1, wt + fr + 1, groove_depth + 1]);
+}
+
 // A single horizontal hole, axis along +Y, drilled through a wall.
 module wall_hole() {
     translate([0, -1, -groove_depth / 2])
@@ -241,6 +286,7 @@ module jig() {
             wall_fillets();
         }
         if (screw_holes) screw_cuts();
+        t_relief_cuts();
     }
 }
 
@@ -249,14 +295,21 @@ module demo_beams() {
     t = beam_depth;
     o = demo_beam_overrun;
 
-    // Beam A — runs along X. Its end face is flush with beam B's
-    // outer face at x = 0, making the outer corner square.
-    translate([0, 0, -t])
-        cube([al + o, beam_a_width, t]);
+    // A freed groove is drawn with its beam running on through the
+    // corner, so the demo shows the joint the current t_relief allows:
+    // an L when nothing is freed, a T when something is.
+    a_start = t_relief == "b" ? beam_b_width
+            : t_relief == "none" ? 0
+            : -o;
+    b_start = t_relief == "b" ? -o : beam_a_width;
 
-    // Beam B — runs along Y, its end butting into beam A's side face.
-    translate([0, beam_a_width, -t])
-        cube([beam_b_width, al + o - beam_a_width, t]);
+    // Beam A — runs along X.
+    translate([a_start, 0, -t])
+        cube([al + o - a_start, beam_a_width, t]);
+
+    // Beam B — runs along Y.
+    translate([0, b_start, -t])
+        cube([beam_b_width, al + o - b_start, t]);
 }
 
 // ============================================================
@@ -280,12 +333,15 @@ if (part == "jig") {
     %demo_beams();
 
 } else if (part == "pair") {
-    // Two of the SAME printed part. The lower one is turned over about
-    // the diagonal of its own corner — a real 180 degree rotation, not a
-    // mirror — which lands its grooves back on the same two beams. This
-    // only works while the two beams are the same width.
+    // The lower jig is turned over about the diagonal of its own corner
+    // — a real 180 degree rotation, not a mirror — which lands its
+    // grooves back on the same two beams. Only works while the two beams
+    // are the same width.
     assert(beam_a_width == beam_b_width,
            "a pair needs equal beam widths, otherwise print a mirrored second jig");
+    // That rotation swaps the arms, so it swaps which groove is freed.
+    if (t_relief == "a" || t_relief == "b")
+        echo("NOTE: with t_relief a or b the pair is two DIFFERENT prints — print the other setting for the lower jig, or use t_relief = \"both\" for one part that does either.");
     jig();
     translate([0, 0, -beam_depth]) rotate(a = 180, v = [1, 1, 0]) jig();
     %demo_beams();
