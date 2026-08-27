@@ -23,6 +23,19 @@
 // Cut list per side frame: 1 x 1500, 1 x 600, 4 x toe_len (250).
 // (Echoed on every render.)
 //
+// HEADBOARD CLAMP (part = "clamp" / "screw" / "clampset"): the
+// bracket that fixes the headboard to the vertical pole. A sleeve
+// slides over the pole (0.35 mm/side, same as the cross bracket)
+// and is locked by a PRINTED thumbscrew through a side boss — the
+// screw's dog point presses the pole against the opposite bore
+// wall. The headboard face is a flat 80 x 20 mm plate with a
+// Ø5 screw hole near each end, braced back to the sleeve by
+// horizontal gussets. One clamp per pole: print two "clampset"
+// plates for the eventual pair of side frames. Thread geometry is
+// the proven generator from magnet_pill_container.scad (45 deg
+// flanks, self-supporting; female thread gets 0.35 mm radial
+// clearance because it prints on a horizontal axis).
+//
 // Fits: gripping sockets are tube + 0.15 mm per side with crush
 // ribs standing 0.2 mm proud — the ribs shave on insertion, so the
 // grip survives the size scatter of extruded aluminium where a
@@ -53,6 +66,13 @@
 //            (the tube datum) on the bed; only bridges are the
 //            ~20 mm pocket ceilings.
 //   cap    — mouth up, closed face on the bed.
+//   clamp  — standing, as used: bore vertical, plate and gussets
+//            rise from the bed. Only the thumbscrew boss is a
+//            horizontal cylinder (house precedent accepts its
+//            underside; the female thread's sag is absorbed by
+//            ts_clear_r).
+//   screw  — head down: the external thread's 45 deg flanks rise
+//            self-supporting.
 //
 // Standalone — no external dependencies.
 // All units: millimeters.
@@ -62,9 +82,13 @@
 //   openscad -o headboard_frame_endt.stl   -D 'part="endt"'   headboard_frame_brackets.scad
 //   openscad -o headboard_frame_cross.stl  -D 'part="cross"'  headboard_frame_brackets.scad
 //   openscad -o headboard_frame_cap.stl    -D 'part="cap"'    headboard_frame_brackets.scad
+//   openscad -o headboard_frame_clamp.stl  -D 'part="clamp"'  headboard_frame_brackets.scad
+//   openscad -o headboard_frame_screw.stl  -D 'part="screw"'  headboard_frame_brackets.scad
 //   openscad --enable=lazy-union -o headboard_frame_brackets.3mf -D 'part="printplate"' headboard_frame_brackets.scad
+//   openscad --enable=lazy-union -o headboard_frame_clampset.3mf -D 'part="clampset"' headboard_frame_brackets.scad
 //   (printplate items: 1 corner, 2 end-T, 3 cross, 4 caps x5.
-//    One plate = one side frame; print two plates for the pair.)
+//    One plate = one side frame; print two plates for the pair.
+//    clampset items: 1 clamp, 2 thumbscrew — print one set per pole.)
 // ============================================================
 
 /* [Tube] */
@@ -99,6 +123,37 @@ corner_round   = 2;     // 2D outline rounding on convex outer corners
 screw_holes    = true;  // O3.4 self-tap backup/lock hole per socket
 screw_d        = 3.4;   // M3-ish self-tapper clearance through printed wall
 
+/* [Headboard Clamp] */
+clamp_h          = 40;    // Sleeve height on the pole
+clamp_plate_w    = 80;    // Headboard plate width (across the pole)
+clamp_plate_h    = 20;    // Headboard plate height
+clamp_plate_t    = 6;     // Headboard plate thickness
+clamp_hole_d     = 5.0;   // Headboard screw holes, one near each plate end
+clamp_hole_inset = 12;    // Hole centre from each plate end
+clamp_gusset     = 10;    // Horizontal gussets bracing the plate wings
+clamp_screw_z    = 26;    // Thumbscrew axis height — above the plate, below the top
+sleeve_ch        = 1.2;   // Entry chamfer on both ends of the sliding bore
+clamp_demo_z     = 1100;  // Clamp height on the pole, assembly view only
+
+/* [Thumbscrew] */
+// Printed-thread numbers proven in magnet_pill_container.scad.
+ts_pitch       = 2.5;   // Thread pitch — coarse, few turns to clamp
+ts_major_d     = 10;    // Thread major diameter
+ts_depth       = 0.6;   // Radial depth of the thread (crest minus root)
+ts_crest       = 0.6;   // Axial width of the flat crest
+ts_root        = 0.6;   // Axial width of the flat root
+ts_len         = 12;    // Threaded shaft length
+ts_head_d      = 20;    // Knurled head diameter
+ts_head_t      = 6;     // Knurled head thickness
+ts_head_flutes = 12;    // Grip scallops around the head
+ts_tip_d       = 7;     // Flat dog point that bears on the pole
+ts_tip_len     = 2;     // Length of that dog point
+ts_clear_r     = 0.35;  // Radial clearance — the female thread prints on a
+                        // horizontal axis, so its bore sags a little
+ts_clear_ax    = 0.25;  // Axial (flank) clearance
+boss_d         = 17;    // Thumbscrew boss diameter on the sleeve side
+boss_len       = 8;     // How far the boss stands off the sleeve
+
 /* [End Caps] */
 caps      = true;
 cap_depth = 15;    // Engagement over the tube end
@@ -111,7 +166,7 @@ $fa = 1;   // Minimum angle — 1 degree gives max 360 facets per full circle
 $fs = 0.4; // Minimum facet edge length (mm) — matched to a 0.4 mm nozzle
 
 /* [Render] */
-part = "assembly";  // [corner, endt, cross, cap, printplate, assembly]
+part = "assembly";  // [corner, endt, cross, cap, clamp, screw, clampset, printplate, assembly]
 
 // ============================================================
 // DERIVED
@@ -147,6 +202,24 @@ foot_x1 = foot_x0 + foot_len;         // Foot tube tip
 endt_x  = foot_x1 + bottom_gap + h_g; // End-T local origin
 vert_z0 = g_out + bottom_gap;         // Vertical tube bottom
 
+// Headboard clamp / thumbscrew. Male thread first, female = male
+// grown by the clearances (radial) and widened flanks (axial).
+ts_maj_r       = ts_major_d / 2;
+ts_min_r       = ts_maj_r - ts_depth;
+ts_f_min_r     = ts_min_r + ts_clear_r;
+ts_f_maj_r     = ts_maj_r + ts_clear_r;
+ts_phi_root    = lobe_angle(ts_pitch - ts_root, ts_pitch);
+ts_phi_crest   = lobe_angle(ts_crest, ts_pitch);
+ts_phi_clear   = lobe_angle(ts_clear_ax, ts_pitch);
+ts_f_phi_root  = ts_phi_root + ts_phi_clear;
+ts_f_phi_crest = ts_phi_crest + ts_phi_clear;
+ts_lead        = 1.2;                     // Entry flare on the female thread
+boss_outer     = h_s + boss_len;          // Boss face, from the pole axis
+boss_thread    = boss_outer - s_in / 2;   // Female thread length available
+// Screw pressed home: tip on the pole face, head still off the boss.
+ts_press_gap   = tube / 2 + ts_tip_len + ts_len - boss_outer;
+ts_press_eng   = boss_outer - tube / 2 - ts_tip_len;
+
 eps = 0.01;
 
 // Sanity guards — these would produce broken geometry rather than an
@@ -164,6 +237,18 @@ assert(rib_proud < grip_clear + 0.15,
        "crush ribs too proud — the tube cannot be inserted");
 assert(wall > 2 * 0.42,
        "socket wall thinner than 2 extrusion loops");
+assert(ts_f_phi_root < 175,
+       "female thread root lobe nearly a full circle — reduce ts_root or ts_clear_ax");
+assert(ts_tip_d / 2 < ts_min_r,
+       "thumbscrew dog point wider than the thread root");
+assert(ts_press_gap >= 1,
+       "thumbscrew head bottoms on the boss before the tip reaches the pole — lengthen ts_len");
+assert(ts_press_eng >= 2 * ts_pitch,
+       "under two turns of thread engaged when the screw is pressed home");
+assert(clamp_screw_z - boss_d / 2 > clamp_plate_h - 5 && clamp_screw_z + boss_d / 2 < clamp_h,
+       "thumbscrew boss must sit above the plate and inside the sleeve height");
+assert(clamp_plate_w / 2 - clamp_hole_inset - clamp_hole_d / 2 > h_s + clamp_gusset,
+       "headboard screw holes overlap the sleeve or gussets — widen clamp_plate_w or shrink clamp_gusset");
 
 // Fit report — printed on every render.
 echo(str("FIT: grip pocket ", g_in, " mm (", grip_clear, "/side)",
@@ -182,6 +267,9 @@ echo(str("ASSEMBLED envelope: ", endt_x + h_g, " (X) x ",
          2 * (h_s + bottom_gap + toe_len), " toe stance (Y) x ",
          vert_z0 + vertical_len + (caps ? cap_face : 0), " (Z) mm"));
 echo(str("WALLS: ", wall, " mm = ", wall / 0.42, " extrusion lines at 0.42 mm"));
+echo(str("CLAMP: thumbscrew M", ts_major_d, "x", ts_pitch, " printed thread, ",
+         ts_press_eng / ts_pitch, " turns engaged at the pole, head-to-boss gap ",
+         ts_press_gap, " mm when pressed home"));
 
 // ============================================================
 // HELPERS
@@ -438,6 +526,158 @@ module end_cap() {
 }
 
 // ============================================================
+// THREAD GENERATION
+// (verbatim from magnet_pill_container.scad, which documents the
+// method: linear_extrude(twist) over a disc plus a lobe whose
+// angular width sets the axial thread profile — 45 deg flanks,
+// self-supporting, right-handed.)
+// ============================================================
+
+// Angular half-width of the lobe that yields a given axial width.
+function lobe_angle(axial_width, pitch) = (axial_width / 2) / pitch * 360;
+
+// Boundary of the lobe, as a closed polygon.
+function thread_lobe_pts(r_min, r_maj, p_root, p_crest,
+                         flank_steps = 10, crest_steps = 16) =
+    concat(
+        [ for (k = [0 : flank_steps])
+            let (t = k / flank_steps,
+                 r = r_min  + (r_maj  - r_min ) * t,
+                 p = p_root + (p_crest - p_root) * t)
+            [r * cos(p), r * sin(p)] ],
+        [ for (k = [1 : crest_steps - 1])
+            let (p = p_crest - 2 * p_crest * k / crest_steps)
+            [r_maj * cos(p), r_maj * sin(p)] ],
+        [ for (k = [flank_steps : -1 : 0])
+            let (t = k / flank_steps,
+                 r = r_min  + (r_maj  - r_min ) * t,
+                 p = -(p_root + (p_crest - p_root) * t))
+            [r * cos(p), r * sin(p)] ]
+    );
+
+// 2D cross-section: round core plus the thread lobe.
+module thread_profile_2d(r_min, r_maj, p_root, p_crest) {
+    union() {
+        circle(r = r_min);
+        polygon(thread_lobe_pts(r_min, r_maj, p_root, p_crest));
+    }
+}
+
+// The helical solid: core cylinder with a thread wrapped around
+// it, starting at z = 0 and rising `turns` turns.
+module thread_solid(r_min, r_maj, p_root, p_crest, turns, pitch = ts_pitch) {
+    linear_extrude(height     = pitch * turns,
+                   twist      = -360 * turns,
+                   slices     = max(24, round(turns * 72)),
+                   convexity  = 10)
+        thread_profile_2d(r_min, r_maj, p_root, p_crest);
+}
+
+// Grip scallops, as cutters, evenly spaced around a cylinder.
+module flute_ring(d_out, h, count, r, depth) {
+    dist = d_out / 2 + r - depth;
+    for (i = [0 : count - 1])
+        rotate([0, 0, i * 360 / count])
+            translate([dist, 0, -eps])
+                cylinder(h = h + 2 * eps, r = r);
+}
+
+// ============================================================
+// HEADBOARD CLAMP
+// Slides over the vertical pole; a printed thumbscrew through the
+// +Y boss presses the pole against the opposite bore wall. The
+// 80 x 20 headboard plate faces +X — the same side the foot runs,
+// so the headboard stands over the foot. Local origin: pole axis,
+// bracket underside at z = 0. Prints in this orientation.
+// ============================================================
+
+// Female thread for the thumbscrew, as a cutter along +Z with
+// z = 0 at the mouth (includes bore, thread and entry flare).
+module ts_thread_negative(depth) {
+    translate([0, 0, -eps])
+        cylinder(h = depth + eps, r = ts_f_min_r);
+    translate([0, 0, -ts_pitch])
+        thread_solid(ts_f_min_r, ts_f_maj_r,
+                     ts_f_phi_root, ts_f_phi_crest,
+                     (depth + 2 * ts_pitch) / ts_pitch);
+    translate([0, 0, -eps])
+        cylinder(h = ts_lead + eps, r1 = ts_f_maj_r + ts_lead, r2 = ts_f_maj_r);
+}
+
+// The sliding bore, chamfered at both ends so it starts onto the
+// pole squarely and does not scrape as it slides.
+module clamp_bore_negative() {
+    translate([0, 0, -eps])
+        linear_extrude(clamp_h + 2 * eps)
+            square(s_in, center = true);
+    translate([0, 0, -eps])
+        linear_extrude(sleeve_ch + eps,
+                       scale = s_in / (s_in + 2 * sleeve_ch))
+            square(s_in + 2 * sleeve_ch, center = true);
+    translate([0, 0, clamp_h - sleeve_ch])
+        linear_extrude(sleeve_ch + eps,
+                       scale = (s_in + 2 * sleeve_ch) / s_in)
+            square(s_in, center = true);
+}
+
+module clamp_bracket() {
+    difference() {
+        union() {
+            // Sleeve.
+            linear_extrude(clamp_h)
+                rounded_outline() square(s_out, center = true);
+            // Headboard plate, gussets and the sleeve footprint as ONE
+            // outline. Every piece genuinely OVERLAPS its neighbour —
+            // rounded_outline() erodes before dilating, which would
+            // disconnect shapes that merely touch along an edge.
+            linear_extrude(clamp_plate_h)
+                rounded_outline() {
+                    square(s_out, center = true);
+                    translate([h_s, -clamp_plate_w / 2])
+                        square([clamp_plate_t, clamp_plate_w]);
+                    translate([h_s - 1, -h_s]) square([2, s_out]);
+                    for (s = [-1, 1]) scale([1, s])
+                        polygon([[h_s + 1, h_s + clamp_gusset],
+                                 [h_s + 1, h_s - 1],
+                                 [h_s - clamp_gusset, h_s - 1]]);
+                }
+            // Thumbscrew boss.
+            translate([0, s_in / 2, clamp_screw_z])
+                rotate([-90, 0, 0])
+                    cylinder(h = boss_outer - s_in / 2, d = boss_d);
+        }
+        clamp_bore_negative();
+        // Female thread, mouth at the boss face, cutting inward.
+        translate([0, boss_outer, clamp_screw_z])
+            rotate([90, 0, 0])
+                ts_thread_negative(boss_thread);
+        // Headboard screw holes.
+        for (s = [-1, 1])
+            translate([h_s - 1, s * (clamp_plate_w / 2 - clamp_hole_inset),
+                       clamp_plate_h / 2])
+                rotate([0, 90, 0])
+                    cylinder(h = clamp_plate_t + 2, d = clamp_hole_d, $fn = 24);
+    }
+}
+
+// Printed thumbscrew. Prints head DOWN: the external thread then
+// rises in the good direction, 45 deg flanks self-supporting.
+module clamp_thumbscrew() {
+    // Knurled head.
+    difference() {
+        cylinder(h = ts_head_t, d = ts_head_d);
+        flute_ring(ts_head_d, ts_head_t, ts_head_flutes, 1.6, 0.9);
+    }
+    // Threaded shaft.
+    translate([0, 0, ts_head_t])
+        thread_solid(ts_min_r, ts_maj_r, ts_phi_root, ts_phi_crest,
+                     ts_len / ts_pitch);
+    // Flat dog point that bears on the pole face.
+    translate([0, 0, ts_head_t + ts_len - eps])
+        cylinder(h = ts_tip_len + eps, d1 = ts_tip_d, d2 = ts_tip_d - 1);
+}
+
+// ============================================================
 // VIEWS
 // ============================================================
 
@@ -456,6 +696,15 @@ module assembly() {
         %translate([cross_station, s * (h_s + bottom_gap), tube_z])
             rotate([s > 0 ? -90 : 90, 0, 0]) ghost_tube(toe_len);
     }
+
+    // Headboard clamp on the pole, thumbscrew pressed home, and a
+    // ghost slab where the headboard itself will stand.
+    color("firebrick") translate([h_g, 0, clamp_demo_z]) clamp_bracket();
+    color("gold") translate([h_g, tube / 2 + ts_tip_len + ts_len + ts_head_t,
+                             clamp_demo_z + clamp_screw_z])
+        rotate([90, 0, 0]) clamp_thumbscrew();
+    %translate([h_g + h_s + clamp_plate_t, -300, 400])
+        cube([20, 600, 1050]);
 
     if (caps) color("gold") {
         translate([h_g, 0, vert_z0 + vertical_len + cap_face])
@@ -516,6 +765,18 @@ if (part == "corner") {
 } else if (part == "cap") {
     end_cap();
 
+} else if (part == "clamp") {
+    clamp_bracket();
+
+} else if (part == "screw") {
+    clamp_thumbscrew();
+
+} else if (part == "clampset") {
+    // One clamp + its thumbscrew, lazy-union items 1 and 2.
+    // Print one set per pole (two sets for the pair of frames).
+    clamp_bracket();
+    translate([40, 0, 0]) clamp_thumbscrew();
+
 } else if (part == "printplate") {
     // Each top-level statement is one lazy-union build item:
     // 1 corner, 2 end-T, 3 cross, 4 caps (x5, one object).
@@ -528,5 +789,5 @@ if (part == "corner") {
     assembly();
 
 } else {
-    echo("Unknown part — corner | endt | cross | cap | printplate | assembly");
+    echo("Unknown part — corner | endt | cross | cap | clamp | screw | clampset | printplate | assembly");
 }
