@@ -2,59 +2,62 @@
 // rpi5_case.scad — Raspberry Pi 5 enclosure, sealed-port variant
 //
 // A two-piece case for a Raspberry Pi 5 fitted with the official
-// Active Cooler.  The USB 3.0, USB 2.0, Ethernet and micro-HDMI
-// openings are BLANKED OFF by default: those wall sections render
-// as plain solid wall, so the board's data and display ports are
-// physically inaccessible without opening the case.  Only the
-// USB-C power inlet, the microSD slot and the side power button
-// stay open.  Each blanked port is an independent flag, so any of
-// them can be re-opened later without touching geometry.
+// Active Cooler.  The USB 3.0, USB 2.0, Ethernet, micro-HDMI and
+// microSD openings are BLANKED OFF by default: those wall sections
+// render as plain solid wall, so the board's data, display and card
+// slots are physically inaccessible without opening the case.  Only
+// the USB-C power inlet stays open.  Each blanked port is an
+// independent flag, so any of them can be re-opened without touching
+// geometry.
+//
+// The lid SNAPS into the base on four sprung posts at the corners —
+// no screws, no inserts.  Each post is a Ø3 shaft split by a slot
+// into two 10 mm cantilever legs with a barb at the tip; the barb
+// squeezes through a neck in the base's corner boss and springs into
+// a relief chamber below it.  The legs are long on purpose: at 0.35 mm
+// deflection a 10 mm leg sees ~0.5% strain, well inside what PLA and
+// PETG tolerate, where a short post would sit at ~2.5% and creep or
+// snap off.  Set lid_fixing="screw" to fall back to M3 countersunk
+// screws through the base floor instead.
 //
 // The lid carries a two-colour logo made the same way as
-// logo_print.scad: a pocket is cut into the lid's top face and a
-// plug of EXACTLY the same footprint is emitted as a separate
-// object.  Because both come from one 2D profile, they register by
-// construction — no alignment work in the slicer.  The logo profile
-// comes from an SVG (logo_source="svg") or from native OpenSCAD
-// text (logo_source="text", the default so this file renders
-// standalone before an SVG exists).
+// logo_print.scad: a pocket is cut into the lid's top face and a plug
+// of EXACTLY the same footprint is emitted as a separate object.
+// Because both come from one 2D profile, they register by
+// construction.  The profile comes from an SVG (logo_source="svg") or
+// from native OpenSCAD text (logo_source="text", the default so this
+// file renders standalone before an SVG exists).
 //
-// The lid is held down by four M3 countersunk screws that run UP
-// through the base floor into bosses in the lid, not down through the
-// lid.  That keeps the show face completely unbroken — no screw heads
-// competing with the logo, and the whole top plate is available for it
-// — and it halves the screw length, since the fastener no longer has
-// to span the full lid height.
+// The lid prints TOP FACE DOWN.  That puts the logo pocket flat on the
+// build plate, which is what makes the two-colour face crisp, and
+// neither piece needs supports.  Nothing is mirrored: the model is
+// built readable from +Z and the whole lid (pocket, plug and snap
+// posts together) is rotated for printing.
 //
-// The lid prints TOP FACE DOWN.  That puts the logo pocket flat on
-// the build plate, which is what makes the two-colour face crisp,
-// and it means neither piece needs supports.  Nothing is mirrored:
-// the model is built readable from +Z and the whole lid (pocket and
-// plug together) is rotated for printing, so the physical part comes
-// out the right way round.
-//
-// Cooling: the Active Cooler's fan draws air down through a hex
-// intake grille in the lid directly above it, and the heatsink
-// exhausts sideways through hex fields in the long walls.  Hex holes
-// are used throughout because a regular hexagon has a vertex at both
-// top and bottom, so it self-supports in a vertical wall at any size
-// AND in either print orientation (same reasoning as
-// mesh_box_eco.scad, which matters here because the base prints
-// floor-down and the lid prints inverted).
+// Cooling: a hex grille near the lid's microSD end, and a hex field in
+// the floor under the PCB.  Both are laid out as tidy staggered blocks
+// with a fixed cell count per row, so the edges come out straight.
+// NOTE: the floor vents only breathe if the case is lifted off the
+// desk — stick-on rubber feet.  Printed feet are not an option here:
+// the base prints floor-down, so feet would leave the whole floor
+// bridging in mid-air.
 //
 // Coordinate system:
-//   Origin is the CENTRE of the PCB footprint in XY, and the
-//   OUTER BOTTOM FACE of the case in Z.
+//   Origin is the CENTRE of the PCB footprint in XY, and the OUTER
+//   BOTTOM FACE of the case in Z.
 //   X = board length (85 mm), Y = board width (56 mm), Z = up.
-//   Board coordinates (origin at the microSD / USB-C corner, as used
-//   by the Raspberry Pi mechanical drawing) are converted by bx()/by()
-//   so port parameters can be typed straight off the datasheet.
+//   Board coordinates (origin at the microSD / USB-C corner, as used by
+//   the Raspberry Pi mechanical drawing) are converted by bx()/by() so
+//   port parameters can be typed straight off the datasheet.
 //
 //   Board edges, by face:
-//     x = 0   -> microSD end
-//     x = 85  -> port face: 2x USB, Ethernet   (blanked by default)
+//     x = 0   -> microSD end        (blanked; lid grille sits over it)
+//     x = 85  -> port face: 2x USB, Ethernet   (blanked)
 //     y = 0   -> USB-C power, 2x micro-HDMI, power button
 //     y = 56  -> 40-pin GPIO header edge
+//
+// Board geometry is MEASURED, not recalled — see the regression
+// asserts at the end of this file.
 //
 // All units: millimetres.
 //
@@ -63,12 +66,21 @@
 //   openscad -o rpi5_case_top.stl    -D 'part="top"'    rpi5_case.scad
 //   openscad -o rpi5_case_logo.stl   -D 'part="logo"'   rpi5_case.scad
 //
-// Two-colour lid as a single multi-part 3MF (see make_multipart_3mf.py):
+// TWO COLOUR (logo_two_colour=true, the default).  The logo plug is emitted
+// as its own object in the SAME coordinate frame as the pocket, so it drops
+// in with no alignment work.  BOTH steps are required: --enable=lazy-union
+// stops OpenSCAD unioning the three objects into one, and
+// make_multipart_3mf.py then fuses the lid and plug into a single object
+// with two COMPONENTS, which is what makes OrcaSlicer offer the plug its own
+// filament.  Without --group=2,3 all three fuse and the base gets dragged
+// into the lid's settings.
 //   openscad --enable=lazy-union -o /tmp/raw.3mf -D 'part="printplate"' rpi5_case.scad
 //   python3 make_multipart_3mf.py /tmp/raw.3mf rpi5_case.3mf --group=2,3
-//   (build items are: 1 base, 2 lid, 3 logo plug; --group=2,3 fuses the
-//    lid and its plug into one two-part object so OrcaSlicer offers the
-//    plug its own filament, and leaves the base free-standing.)
+//   (build items are: 1 base, 2 lid, 3 logo plug)
+//
+// SINGLE COLOUR (logo_two_colour=false).  No plug; the logo is just a
+// debossed pocket, and one step does it:
+//   openscad --enable=lazy-union -o rpi5_case.3mf -D 'part="printplate"' -D 'logo_two_colour=false' rpi5_case.scad
 // ============================================================
 
 /* [View] */
@@ -79,14 +91,30 @@ part = "both";  // bottom | top | both | exploded | logo | printplate
 // "svg" imports logo_svg — the artwork must be CLOSED PATHS (outlines,
 // not strokes); OpenSCAD ignores stroke width entirely, so a
 // stroke-only SVG imports as nothing.
-logo_source    = "text";              // text | svg
-logo_svg       = "logo.svg";          // path, relative to this file
-logo_svg_dpi   = 96;                  // SVG user units -> mm scaling basis
-logo_scale     = 1.0;                 // uniform scale applied after import
+logo_source    = "svg";               // text | svg
+// maivo-outlined-bold.svg is your artwork with the six spokes taken from
+// stroke-width 10 to 14 and ALL strokes converted to paths.  Both changes
+// are necessary: OpenSCAD ignores stroke entirely (a stroked SVG imports as
+// nothing), and at 10 units the spokes come out 0.58 mm, below what a
+// 0.4 mm nozzle resolves.  maivo-outlined.svg is the same file with the
+// original 10-unit spokes if you prefer the lighter look.
+logo_svg       = "maivo-outlined-bold.svg";
+// Which part of the lockup to use.  "mark" crops to the roundel; "lockup"
+// uses the whole thing including the wordmark.  See the stroke-width echo
+// below before choosing - the lockup is 3.1:1, so fitting it to the panel
+// shrinks it until the spokes stop printing.
+logo_part_sel  = "mark";              // mark | lockup
+logo_fit       = 55;                  // width in mm of whatever is selected
+logo_two_colour = true;               // true = emit the plug as its own object
+                                      // for a second filament; false = debossed only
+// Artwork metrics in raw SVG units, measured off the file.
+logo_view      = [3127, 1009];        // viewBox
+logo_mark_x    = [0, 942];            // the roundel's x extent
+logo_min_stroke_u = 14;               // thinnest stroke in the artwork (the spokes)
 logo_text      = "PI 5";              // used when logo_source="text"
 logo_font      = "DejaVu Sans:style=Bold";
-logo_text_size = 11;                  // cap height (mm)
-logo_pos       = [27, 0];             // XY centre on the lid, world coords
+logo_text_size = 13;                  // cap height (mm)
+logo_pos       = [12, 0];             // XY centre on the lid, world coords
 logo_rot       = 0;                   // degrees, about Z
 logo_depth     = 0.8;                 // pocket depth = 4 layers @0.2mm, opaque
 logo_plug_gap  = 0.0;                 // 2D offset on the plug; 0 = exact (MMU).
@@ -98,36 +126,34 @@ hide_usb2     = true;   // 2x USB 2.0 (black), port face
 hide_ethernet = true;   // Gigabit Ethernet, port face
 hide_hdmi     = true;   // both micro-HDMI, power face
 open_usbc     = true;   // USB-C power inlet
-open_microsd  = true;   // microSD slot, microSD end
-// The reference case cuts NO button opening, and I could not verify the
-// button's position against anything, so this defaults off.  Turning it on
-// cuts a small hole at button_x — measure that first.
+open_microsd  = false;  // microSD slot — closed by request
+// The reference case cuts no button opening and I could not verify the
+// button's position against anything, so this defaults off.
 open_button   = false;  // side power button
 
-/* [Port positions — board coords, mm. VERIFY against your board.] */
-// USB-C, micro-HDMI, the power button and microSD are the ones that
-// actually get cut with the defaults above.  The port-face entries
-// only matter if a hide_* flag is turned off; measure before trusting
-// them, and note that the Pi 5 swapped the Ethernet and USB positions
-// relative to the Pi 4.
+/* [Port positions — board coords, mm] */
+// USB-C and the micro-HDMI pair were measured off a known-good Pi 5
+// case; see the asserts at the end.  The port-face entries only matter
+// if a hide_* flag is turned off; measure before trusting them, and note
+// that the Pi 5 swapped Ethernet and USB positions relative to the Pi 4.
 usbc_x        = 11.2;          // centre, from x=0 edge
-usbc_open     = [12.5, 6.7];   // opening [width, height], measured off a real case
+usbc_open     = [12.5, 6.7];   // opening [width, height], measured
 hdmi0_x       = 25.8;
 hdmi1_x       = 39.2;
 hdmi_open     = [10.3, 6.6];
-button_x      = 2.6;           // side power button centre
-button_d      = 3.5;           // tool access hole.  Kept small: at 5.5 it
-                               // ran into the USB-C opening.
+button_x      = 2.6;           // side power button centre — UNVERIFIED
+button_d      = 3.5;
 button_z      = 1.2;           // centre height above the PCB top face
-port_drop     = 1.5;           // how far below the PCB top face the port
-                               // openings start (connector bodies sit slightly
-                               // proud of the board's top surface)
-microsd_y     = 22.5;          // centre, from y=0 edge
+port_drop     = 1.5;           // how far below the PCB top face openings start
+port_r        = 1.5;           // corner radius on rectangular port openings
+microsd_y     = 22.5;          // centre, from y=0 edge — UNVERIFIED, and
+                               // reported misaligned on the printed part.
+                               // Irrelevant while open_microsd = false.
 microsd_open  = [15.0, 4.0];
 eth_y         = 45.75;         // port face, centre from y=0 edge
 eth_open      = [17.0, 15.5];
-usb3_y        = 27.0;          // port face, centre of the blue stack
-usb2_y        = 9.0;           // port face, centre of the black stack
+usb3_y        = 27.0;
+usb2_y        = 9.0;
 usb_open      = [16.0, 17.5];
 
 /* [Board — Raspberry Pi 5] */
@@ -136,88 +162,113 @@ pcb_d         = 56.0;   // Y
 pcb_t         = 1.4;
 pcb_corner_r  = 3.0;
 // The mounting holes are NOT centred on the board in X.  They sit
-// hole_inset from the microSD end and pcb_w - hole_inset - hole_dx
-// (= 23.5 mm) from the port end, so the pattern's centre is 10 mm
-// toward the microSD end of the board centre.  Computing them as
-// +/- hole_dx/2 puts both standoffs 10 mm out and drags the whole board
-// away from the port cutouts.  Verified against a known-good case STL —
-// see the regression asserts at the end of this file.
+// hole_inset from the microSD end and 23.5 mm from the port end, so the
+// pattern's centre is 10 mm toward the microSD end of the board centre.
+// Computing them as +/- hole_dx/2 puts both standoffs 10 mm out and
+// drags the whole board away from the port cutouts.
 hole_inset    = 3.5;    // hole centres, from the x=0 end and from both Y edges
 hole_dx       = 58.0;   // mounting hole pitch in X
 hole_dy       = 49.0;   // mounting hole pitch in Y
 
-/* [Cooling — official Active Cooler] */
-cooler_h      = 15.5;          // height above the PCB TOP face (heatsink + fan)
-cooler_centre = [30.0, 28.0];  // board coords, over the SoC
-cooler_size   = [40.0, 32.0];  // footprint the intake grille must cover
-air_gap       = 4.0;           // plenum between cooler top and lid underside
-vent_cell     = 4.5;           // hex across-flats (mm)
-vent_web      = 1.4;           // ligament between hexes (mm)
-// Which walls get exhaust.  NOT the power face: USB-C lives there, and a
-// vent field wide enough to be useful merges into the port cutout and
-// leaves one ragged slot.  The port face is a fully blanked solid wall
-// once the USB / Ethernet / HDMI flags are set, and it faces the
-// direction the cooler's fins discharge, so it is the better outlet.
-vent_gpio     = true;          // long wall on the GPIO side (y+)
-vent_port     = true;          // end wall on the port side (x+)
-vent_power    = false;         // long wall carrying USB-C (y-)
-side_vent_h   = 12.0;          // height of each side vent field.  Clamped
-                               // per half to what the wall can hold; it must
-                               // fit at least two WHOLE hex rows to be worth
-                               // cutting (see the vent rows echo).
-side_vent_f   = 0.60;          // vent field width as a fraction of the cavity
+/* [Cooling] */
+cooler_h      = 15.5;   // height above the PCB TOP face (heatsink + fan)
+air_gap       = 4.0;    // plenum between cooler top and lid underside
+vent_cell     = 6.0;    // hex across-flats (mm)
+vent_web      = 1.4;    // wall between cells (mm).  Thin walls are what make
+                        // the field read as honeycomb rather than as a
+                        // scattering of separate holes.
+// Lid grille: a tidy block of rows near the microSD short edge.  Rows
+// stack along X, cells run along Y.
+lid_vent      = true;
+lid_vent_rows = 3;
+lid_vent_cols = 6;
+lid_vent_x    = -35;    // band centre, world X
+// Floor vents under the PCB.  Centred between the two standoff columns.
+floor_vent      = true;
+floor_vent_rows = 5;
+floor_vent_cols = 7;
+floor_vent_pos  = [-10, 0];   // block centre, world XY
 
 /* [Shell] */
-side_gap      = 4.5;    // clearance from PCB edge to cavity wall.  Also what
-                        // makes room for the corner screw bosses — see the
-                        // "corner boss fit" echo at the bottom of this file.
+// side_gap also makes room for the corner snap bosses, which are a tight
+// squeeze between the PCB's corner radius and the shell's outer radius.
+// See the "corner boss fit" echo at the bottom of this file.
+side_gap      = 7.0;    // clearance from PCB edge to cavity wall
 wall          = 2.4;
 floor_t       = 2.0;
 lid_t         = 2.4;
 cav_r         = 4.0;    // cavity corner radius
-split_gap     = 5.5;    // how far the split sits above the PCB top face.
-                        // Must clear the tallest port opening, or the split
-                        // shaves a useless sliver off the top of it into the
-                        // lid — see the port/split echo below.
+split_gap     = 5.5;    // minimum split height above the PCB top face
+// The split must also leave real material over the tallest port opening.
+// The first print had only 0.3 mm there and it was too thin.
+port_cap_t    = 3.0;    // material above the tallest port opening
 
 /* [Fasteners] */
-standoff_d    = 7.0;    // board standoff outer diameter.  Sized so the
-                        // relief counterbore below still leaves a ~1 mm
-                        // annulus for the PCB to seat on.
-standoff_h    = 6.0;    // clearance under the PCB.  Deep enough that the
-                        // relief counterbore below still leaves real material
-                        // for the board screw to thread into.
+lid_fixing    = "snap"; // snap | screw
+standoff_d    = 7.0;    // board standoff outer diameter
+standoff_h    = 6.5;    // clearance under the PCB
 board_pilot_d = 2.1;    // self-tapping pilot for M2.5 board screws
-floor_keep    = 1.0;    // solid floor left under the pilot, so the screw
-                        // cannot break out of the case's bottom face
+floor_keep    = 1.0;    // solid floor left under the pilot
 // The Active Cooler's spring push-pins occupy two of the four PCB
-// mounting holes, and their barbs expand BELOW the board.  Every
-// standoff therefore gets a relief counterbore so the board seats flat
-// whichever pair the cooler happens to use; screw down the other two.
+// mounting holes and their barbs expand BELOW the board.  Every standoff
+// gets a relief counterbore so the board seats flat whichever pair the
+// cooler uses; screw down the other two.
 pin_relief_d  = 5.0;
 pin_relief_h  = 3.0;
-// Lid screws: M3 countersunk, entering from UNDERNEATH.  They pass
-// through the base's corner columns and thread into the lid's.
-lid_screw_d   = 3.4;    // M3 clearance through the base column
-lid_head_d    = 6.2;    // countersunk head, flush with the case bottom
-lid_pilot_d   = 2.6;    // self-tapping pilot in the lid column
-lid_pilot_h   = 12.0;   // pilot depth into the lid
-lid_screw_len = 25.0;   // the screw you actually intend to use (reported below)
-boss_d        = 6.0;
-boss_inset    = 2.6;    // boss centre, pulled in from the cavity corner
+boss_d        = 9.0;    // corner boss — must clear snap_relief_d + 2 walls
+boss_inset    = 3.85;   // boss centre, pulled in from the cavity corner
+
+/* [Snap fit] */
+// Barb squeezes through the neck, springs into the relief chamber, and
+// its flat top shoulder catches on the neck's underside.
+// Sized up from the first revision: thicker legs and a deeper barb give
+// roughly 2.7x the retention force, and the longer leg keeps the strain
+// LOWER than before despite the bigger deflection.  Retention force goes
+// as leg_t^3 / leg_len^3, strain as leg_t * deflection / leg_len^2, so
+// growing thickness and length together buys force without cost.
+snap_neck_d    = 5.2;   // bore the barb squeezes through
+snap_neck_h    = 10.4;  // = post length - barb height
+snap_relief_d  = 6.6;   // chamber the barb springs into
+snap_relief_h  = 2.5;
+snap_post_d    = 4.4;   // shaft
+snap_barb_d    = 6.0;   // barb outer; protrudes 0.4 mm past the neck
+snap_barb_h    = 1.6;
+snap_slot_w    = 1.2;   // splits the post into two cantilever legs
+snap_lead      = 1.2;   // lead-in chamfer at the mouth of the neck
+
+/* [Screws — only used when lid_fixing="screw"] */
+lid_screw_d   = 3.4;
+lid_head_d    = 6.2;
+lid_pilot_d   = 2.6;
+lid_pilot_h   = 12.0;
+lid_screw_len = 28.0;
+
+/* [Bumpers] */
+// Shallow pockets in the four corners of the underside that locate
+// self-adhesive rubber bumpers - the same ones handbag_desk_hook.scad
+// uses.  The pocket only has to position the bumper, so it is 1 mm deep;
+// the bumper's remaining 2 mm is what lifts the case and lets the floor
+// honeycomb breathe.
+bumpers          = true;
+bumper_dia       = 10.0;  // bumper diameter (mm)
+bumper_thickness = 3.0;   // bumper thickness (mm)
+bumper_recess    = 1.0;   // pocket depth (mm)
+bumper_clearance = 0.4;   // pocket oversize on diameter (mm)
+
+/* [Joint] */
 lip_t         = 1.2;    // lid spigot thickness
 lip_h         = 4.0;    // lid spigot depth into the base
 lip_clear     = 0.25;   // spigot-to-cavity clearance per side
 
 /* [Ribs] */
-// Board locating ribs.  Positions are board coords along each face and
-// are chosen to clear every opening AND the wall vent fields.
+// Board locating ribs.  Positions are board coords along each face,
+// chosen to clear every opening.
 rib_w         = 2.4;
 rib_clear     = 0.25;   // slop between the rib face and the PCB edge
-ribs_y0       = [73.5, 82.5];  // power face — clear of USB-C, HDMI, button, vent
-ribs_y1       = [12.0, 73.0];  // GPIO edge — outboard of the vent field
-ribs_x0       = [45.0];        // microSD end — clear of the card slot
-ribs_x1       = [50.0];        // port face — outboard of that wall's vent
+ribs_y0       = [20.0, 73.5];  // power face — clear of the USB-C opening
+ribs_y1       = [12.0, 73.0];  // GPIO edge
+ribs_x0       = [45.0];        // microSD end
+ribs_x1       = [45.0];        // port face
 
 /* [Quality] */
 $fa = 1;    // max 360 facets per full circle
@@ -229,9 +280,9 @@ eps = 0.01;
 // Derived
 // ============================================================
 
-cav_w  = pcb_w + 2 * side_gap;        // cavity inner size
+cav_w  = pcb_w + 2 * side_gap;
 cav_d  = pcb_d + 2 * side_gap;
-out_w  = cav_w + 2 * wall;            // case outer footprint
+out_w  = cav_w + 2 * wall;
 out_d  = cav_d + 2 * wall;
 out_r  = cav_r + wall;
 
@@ -239,47 +290,40 @@ pcb_z     = floor_t + standoff_h;             // PCB underside
 pcb_top_z = pcb_z + pcb_t;
 cav_top_z = pcb_top_z + cooler_h + air_gap;   // lid underside
 case_h    = cav_top_z + lid_t;
-split_z   = pcb_top_z + split_gap;
 
-// Board coords -> world coords
 function bx(x) = x - pcb_w / 2;
 function by(y) = y - pcb_d / 2;
 
-// Corner boss centres, pulled in from the cavity corners along both
-// axes.  The corner is a tight squeeze between the PCB's corner radius
-// and the shell's outer radius; see the fit echo at the end.
-boss_pts = [ for (sx = [-1, 1], sy = [-1, 1])
-             [sx * (cav_w / 2 - boss_inset), sy * (cav_d / 2 - boss_inset)] ];
-
-// PCB mounting hole centres, world XY.  X is built from the inset, not
-// from a centred pitch.  Y genuinely is centred: hole_inset and
-// pcb_d - hole_inset are symmetric about the board's mid-line.
-hole_pts = [ for (sx = [0, 1], sy = [-1, 1])
-             [bx(hole_inset + sx * hole_dx), sy * hole_dy / 2] ];
-
-vent_w   = cav_w * side_vent_f;   // long-wall field width (along X)
-vent_w_x = cav_d * side_vent_f;   // end-wall field width  (along Y)
-
-// Board screw: it drops through the PCB and the pin-relief counterbore
-// before it meets any thread, so the usable pilot is what is left below.
-board_pilot_depth = floor_t + standoff_h - pin_relief_h - floor_keep;
-board_screw_len   = pcb_t + pin_relief_h + board_pilot_depth;
-lid_screw_grip    = lid_screw_len - split_z;
-
-// Tallest port opening, so the split can be checked against it.
+// Tallest port opening, and the split placed to clear it.
 port_top_z = pcb_top_z - port_drop +
              max(open_usbc ? usbc_open[1] : 0, hide_hdmi ? 0 : hdmi_open[1],
                  hide_ethernet ? 0 : eth_open[1],
                  (hide_usb3 && hide_usb2) ? 0 : usb_open[1]);
+split_z    = max(pcb_top_z + split_gap, port_top_z + port_cap_t);
 
-// Vent fields, clamped to the wall each half actually has, leaving 1 mm
-// of solid wall above and below.
-base_vent_h = min(side_vent_h, split_z - floor_t - 2);
-lid_vent_h  = min(side_vent_h, cav_top_z - split_z - 2);
-// How many WHOLE hex rows a field of height h can hold.
-function hex_rows(h) =
-    let (pitch_y = (vent_cell + vent_web) * sin(60), rc = vent_cell / cos(30) / 2)
-    max(floor((h - 2 * rc) / pitch_y) + 1, 0);
+// Corner boss centres, pulled in from the cavity corners along both axes.
+boss_pts = [ for (sx = [-1, 1], sy = [-1, 1])
+             [sx * (cav_w / 2 - boss_inset), sy * (cav_d / 2 - boss_inset)] ];
+
+// PCB mounting hole centres, world XY.  X is built from the inset, not
+// from a centred pitch.  Y genuinely is centred.
+hole_pts = [ for (sx = [0, 1], sy = [-1, 1])
+             [bx(hole_inset + sx * hole_dx), sy * hole_dy / 2] ];
+
+// Logo sizing.  The import lands centred on its own bbox, so the roundel's
+// centre sits logo_mark_cx off the origin in that frame.
+logo_sel_w   = (logo_part_sel == "mark") ? logo_mark_x[1] - logo_mark_x[0]
+                                         : logo_view[0];
+logo_mark_cx = (logo_mark_x[0] + logo_mark_x[1]) / 2 - logo_view[0] / 2;
+logo_svg_scale = logo_fit / logo_sel_w;
+logo_h_mm      = logo_view[1] * logo_svg_scale;
+logo_stroke_mm = logo_min_stroke_u * logo_svg_scale;
+
+board_pilot_depth = floor_t + standoff_h - pin_relief_h - floor_keep;
+board_screw_len   = pcb_t + pin_relief_h + board_pilot_depth;
+snap_post_len     = snap_neck_h + snap_barb_h;
+snap_bore_depth   = snap_neck_h + snap_relief_h;
+is_snap           = (lid_fixing == "snap");
 
 // ============================================================
 // Primitives
@@ -289,72 +333,82 @@ module rrect(w, d, r) {
     offset(r = r) offset(r = -r) square([w, d], center = true);
 }
 
-// Is p inside a rounded rectangle of size w x d with corner radius r,
-// both centred on the origin?
-function in_rrect(p, w, d, r) =
-    let (ax = abs(p[0]), ay = abs(p[1]), cx = w / 2 - r, cy = d / 2 - r)
-    ax <= w / 2 && ay <= d / 2 &&
-    (ax <= cx || ay <= cy || norm([ax - cx, ay - cy]) <= r);
-
-// Staggered hex grid filling a w x d rounded rectangle.  Cells are kept
-// only if they fit WHOLE inside the field — clipping the grid instead
-// would leave sliver crescents around the border, which read as ragged
-// and print as unsupported hairs.  rot=30 puts a vertex at both 12 and
-// 6 o'clock, so a cell self-supports when cut through a vertical wall
-// regardless of which way up the piece prints.
-module hex_field_2d(w, d, cell, web, rot = 0) {
-    pitch_x = cell + web;
-    pitch_y = pitch_x * sin(60);
-    r_circ  = cell / cos(30) / 2;                 // hex circumradius
-    field_r = min(w, d) / 4;                      // field's own corner radius
-    nx = ceil(w / pitch_x / 2) + 1;
-    ny = ceil(d / pitch_y / 2) + 1;
-    for (j = [-ny : ny], i = [-nx : nx]) {
-        c = [i * pitch_x + (j % 2 == 0 ? 0 : pitch_x / 2), j * pitch_y];
-        if (in_rrect(c, w - 2 * r_circ, d - 2 * r_circ,
-                     max(field_r - r_circ, 0.01)))
-            translate(c) rotate(rot) circle(d = 2 * r_circ, $fn = 6);
+// A tidy staggered hex block: `rows` rows of cells, odd rows holding
+// `cols` cells and even rows cols-1 sitting half a pitch in.  Every edge
+// comes out straight, which a grid clipped to an outline does not.
+//
+// rot=30 is not cosmetic.  This lattice (dx = cell+web, dy = dx*sin60,
+// alternate rows offset by dx/2) is the POINTY-TOP hex lattice, so the
+// cells only tessellate into a true honeycomb when they are drawn
+// pointy-top.  Drawn flat-top on the same lattice they overlap and the
+// field reads as scattered holes instead of a comb.  A vertex at both 12
+// and 6 o'clock also self-supports in a vertical wall either way up.
+module hex_block(cols, rows, cell, web, rot = 30) {
+    pitch = cell + web;
+    py    = pitch * sin(60);
+    rc    = cell / cos(30) / 2;
+    for (j = [0 : rows - 1]) {
+        n = (j % 2 == 0) ? cols : cols - 1;
+        for (i = [0 : n - 1])
+            translate([(i - (n - 1) / 2) * pitch, (j - (rows - 1) / 2) * py])
+                rotate(rot) circle(d = 2 * rc, $fn = 6);
     }
 }
 
-// A vent field cut through a wall whose normal is Y.
-module vent_wall_y(w, h, t) {
-    rotate([90, 0, 0])
-        linear_extrude(height = t, center = true)
-            hex_field_2d(w, h, vent_cell, vent_web, rot = 30);
-}
+// Gap between a circle of radius r at c and an axis-aligned rect.
+function rect_gap(c, ctr, hw, hh, r) =
+    let (dx = max(abs(c[0] - ctr[0]) - hw, 0), dy = max(abs(c[1] - ctr[1]) - hh, 0))
+    norm([dx, dy]) - r;
 
-// The same, through a wall whose normal is X.  w runs along Y, h along Z.
-module vent_wall_x(w, h, t) {
-    rotate([90, 0, 90])
-        linear_extrude(height = t, center = true)
-            hex_field_2d(w, h, vent_cell, vent_web, rot = 30);
-}
+// Outer size of that block, so it can be checked against obstacles.
+function hex_block_w(cols, cell, web) = (cols - 1) * (cell + web) + cell / cos(30);
+function hex_block_h(rows, cell, web) =
+    (rows - 1) * (cell + web) * sin(60) + cell / cos(30);
 
-// A rectangular opening through a wall whose normal is Y.
+// A rounded rectangular opening through a wall whose normal is Y.
 // z0 = the opening's floor.
 module port_y(cx, z0, size, t) {
-    translate([cx, 0, z0 + size[1] / 2])
-        cube([size[0], t, size[1]], center = true);
+    translate([cx, 0, z0 + size[1] / 2]) rotate([90, 0, 0])
+        linear_extrude(height = t, center = true)
+            rrect(size[0], size[1], port_r);
 }
 
 // The same, through a wall whose normal is X.
 module port_x(cy, z0, size, t) {
-    translate([0, cy, z0 + size[1] / 2])
-        cube([t, size[0], size[1]], center = true);
+    translate([0, cy, z0 + size[1] / 2]) rotate([90, 0, 90])
+        linear_extrude(height = t, center = true)
+            rrect(size[0], size[1], port_r);
 }
 
 // ============================================================
 // Logo — one 2D profile drives both the pocket and the plug
 // ============================================================
 
+// dpi=25.4 makes one SVG user unit exactly 1 mm, so all the artwork
+// metrics above can be typed in raw SVG units.  center=true centres on the
+// artwork's own bounding box.
+module logo_svg_raw() {
+    import(file = logo_svg, center = true, dpi = 25.4);
+}
+
+// Whole lockup, or the roundel cropped out of it and re-centred.
+module logo_svg_sel() {
+    if (logo_part_sel == "mark")
+        translate([-logo_mark_cx, 0]) intersection() {
+            logo_svg_raw();
+            translate([logo_mark_cx, 0])
+                square([logo_sel_w + 60, logo_view[1] + 60], center = true);
+        }
+    else
+        logo_svg_raw();
+}
+
 module logo_2d() {
     if (logo_source == "svg")
-        scale(logo_scale) import(file = logo_svg, center = true, dpi = logo_svg_dpi);
+        scale(logo_svg_scale) logo_svg_sel();
     else
-        scale(logo_scale)
-            text(logo_text, size = logo_text_size, font = logo_font,
-                 halign = "center", valign = "center");
+        text(logo_text, size = logo_text_size, font = logo_font,
+             halign = "center", valign = "center");
 }
 
 module logo_placed_2d(grow = 0) {
@@ -362,13 +416,11 @@ module logo_placed_2d(grow = 0) {
         offset(delta = grow) logo_2d();
 }
 
-// Pocket cutter: overshoots above the lid's top face for a clean cut.
 module logo_cutter() {
     translate([0, 0, case_h - logo_depth])
         linear_extrude(height = logo_depth + eps) logo_placed_2d();
 }
 
-// Plug: exactly the pocket footprint, in the SAME world coordinates.
 module logo_plug() {
     translate([0, 0, case_h - logo_depth])
         linear_extrude(height = logo_depth) logo_placed_2d(logo_plug_gap);
@@ -377,9 +429,7 @@ module logo_plug() {
 // ============================================================
 // Port openings
 // ============================================================
-// Cut into BOTH halves.  Each half's own geometry clips the result, so
-// an opening that straddles the split (the USB-C inlet does) comes out
-// as a matching notch in each piece.
+// Cut into BOTH halves.  Each half's own geometry clips the result.
 
 module port_cuts() {
     // --- power face (y = 0 edge) ---
@@ -407,7 +457,8 @@ module port_cuts() {
     if (open_microsd)
         translate([-(cav_w / 2 + wall / 2), by(microsd_y),
                    pcb_z - microsd_open[1] / 2 + 0.4])
-            cube([wall + 2 * eps, microsd_open[0], microsd_open[1]], center = true);
+            rotate([0, 90, 0]) linear_extrude(height = wall + 2 * eps, center = true)
+                rrect(microsd_open[1], microsd_open[0], port_r);
 }
 
 // ============================================================
@@ -421,26 +472,19 @@ module standoffs() {
             // relief for an Active Cooler push-pin barb
             translate([0, 0, standoff_h - pin_relief_h + eps])
                 cylinder(d = pin_relief_d, h = pin_relief_h);
-            // pilot for an M2.5 board screw — blind, stopping floor_keep
-            // short of the outer bottom face
+            // blind pilot for an M2.5 board screw
             translate([0, 0, floor_keep - floor_t])
                 cylinder(d = board_pilot_d, h = board_pilot_depth + eps);
         }
 }
 
-// Ribs run from the cavity wall inward, stopping rib_clear short of the
-// PCB edge, and rise to the PCB top face.
 module board_ribs() {
     h = pcb_top_z - floor_t;
     depth = side_gap - rib_clear;
-    for (x = ribs_y0) translate([bx(x), -cav_d / 2, floor_t])
-        cube([rib_w, depth, h]);
-    for (x = ribs_y1) translate([bx(x), pcb_d / 2 + rib_clear, floor_t])
-        cube([rib_w, depth, h]);
-    for (y = ribs_x0) translate([-cav_w / 2, by(y), floor_t])
-        cube([depth, rib_w, h]);
-    for (y = ribs_x1) translate([pcb_w / 2 + rib_clear, by(y), floor_t])
-        cube([depth, rib_w, h]);
+    for (x = ribs_y0) translate([bx(x), -cav_d / 2, floor_t]) cube([rib_w, depth, h]);
+    for (x = ribs_y1) translate([bx(x), pcb_d / 2 + rib_clear, floor_t]) cube([rib_w, depth, h]);
+    for (y = ribs_x0) translate([-cav_w / 2, by(y), floor_t]) cube([depth, rib_w, h]);
+    for (y = ribs_x1) translate([pcb_w / 2 + rib_clear, by(y), floor_t]) cube([depth, rib_w, h]);
 }
 
 module base_solid() {
@@ -450,7 +494,6 @@ module base_solid() {
             translate([0, 0, floor_t])
                 linear_extrude(height = split_z) rrect(cav_w, cav_d, cav_r);
         }
-        // corner bosses, full height from the floor to the split face
         for (p = boss_pts) translate([p[0], p[1], floor_t])
             cylinder(d = boss_d, h = split_z - floor_t);
         standoffs();
@@ -458,34 +501,53 @@ module base_solid() {
     }
 }
 
+// Socket for one snap post: a lead-in chamfer, the neck the barb has to
+// squeeze through, then the relief chamber it springs into.
+module snap_socket() {
+    translate([0, 0, split_z - snap_neck_h])
+        cylinder(d = snap_neck_d, h = snap_neck_h + eps);
+    translate([0, 0, split_z - snap_lead])
+        cylinder(d1 = snap_neck_d, d2 = snap_neck_d + 2 * snap_lead,
+                 h = snap_lead + eps);
+    translate([0, 0, split_z - snap_bore_depth])
+        cylinder(d = snap_relief_d, h = snap_relief_h + eps);
+}
+
+// Locating pockets for stick-on rubber bumpers, in the four corners of
+// the underside.  Shallow enough to leave most of the floor intact.
+module bumper_pockets() {
+    for (p = boss_pts) translate([p[0], p[1], -eps])
+        cylinder(d = bumper_dia + bumper_clearance, h = bumper_recess + eps);
+}
+
 module base_vents() {
-    if (vent_gpio || vent_port || vent_power) {
-        z = (floor_t + split_z) / 2;
-        if (vent_gpio)  translate([0,  cav_d / 2 + wall / 2, z])
-                            vent_wall_y(vent_w, base_vent_h, wall + 2 * eps);
-        if (vent_power) translate([0, -(cav_d / 2 + wall / 2), z])
-                            vent_wall_y(vent_w, base_vent_h, wall + 2 * eps);
-        if (vent_port)  translate([cav_w / 2 + wall / 2, 0, z])
-                            vent_wall_x(vent_w_x, base_vent_h, wall + 2 * eps);
-    }
+    if (floor_vent)
+        translate([floor_vent_pos[0], floor_vent_pos[1], -eps])
+            linear_extrude(height = floor_t + 2 * eps)
+                hex_block(floor_vent_cols, floor_vent_rows, vent_cell, vent_web);
 }
 
 module base() {
     difference() {
         base_solid();
-        // M3 clearance up through each corner column, countersunk flush
-        // with the outer bottom face.  The cone narrows as it rises, so
-        // it self-supports printing floor-down.
         for (p = boss_pts) translate([p[0], p[1], 0]) {
-            translate([0, 0, -eps]) cylinder(d = lid_screw_d, h = split_z + 2 * eps);
-            translate([0, 0, -eps])
-                cylinder(d1 = lid_head_d, d2 = lid_screw_d,
-                         h = (lid_head_d - lid_screw_d) / 2 + eps);
+            if (is_snap) snap_socket();
+            else {
+                // M3 clearance up through the column, countersunk flush with
+                // the outer bottom face.  The cone narrows as it rises, so it
+                // self-supports printing floor-down.
+                translate([0, 0, -eps]) cylinder(d = lid_screw_d, h = split_z + 2 * eps);
+                translate([0, 0, -eps])
+                    cylinder(d1 = lid_head_d, d2 = lid_screw_d,
+                             h = (lid_head_d - lid_screw_d) / 2 + eps);
+            }
         }
         port_cuts();
         base_vents();
+        if (bumpers) bumper_pockets();
     }
 }
+
 
 // ============================================================
 // Lid
@@ -499,9 +561,28 @@ module lid_spigot() {
                 rrect(cav_w - 2 * lip_clear - 2 * lip_t,
                       cav_d - 2 * lip_clear - 2 * lip_t, max(cav_r - lip_t, 0.5));
             }
-        // clear the base's corner bosses
         for (p = boss_pts) translate([p[0], p[1], split_z - lip_h - eps])
             cylinder(d = boss_d + 2 * lip_clear, h = lip_h + 2 * eps);
+    }
+}
+
+// One sprung post, hanging below the split face.  Read bottom-up: a
+// narrow tip, a cone widening to the barb, then an abrupt step back to
+// the shaft.  That step is a flat shoulder facing UP, and it is what
+// catches on the underside of the neck once the barb has sprung into the
+// relief chamber.  Tapering the cone the other way would give no lead-in
+// and no retention at all.
+module snap_post() {
+    difference() {
+        union() {
+            translate([0, 0, split_z - snap_post_len])
+                cylinder(d = snap_post_d, h = snap_post_len);
+            translate([0, 0, split_z - snap_post_len])
+                cylinder(d1 = snap_post_d, d2 = snap_barb_d, h = snap_barb_h);
+        }
+        translate([-snap_slot_w / 2, -(snap_barb_d / 2 + 1),
+                   split_z - snap_post_len - eps])
+            cube([snap_slot_w, snap_barb_d + 2, snap_post_len + 2]);
     }
 }
 
@@ -515,26 +596,18 @@ module lid_solid() {
                     rrect(cav_w, cav_d, cav_r);
         }
         lid_spigot();
-        // corner columns, landing square on the base's bosses
         for (p = boss_pts) translate([p[0], p[1], split_z])
             cylinder(d = boss_d, h = cav_top_z - split_z);
+        if (is_snap)
+            for (p = boss_pts) translate([p[0], p[1], 0]) snap_post();
     }
 }
 
 module lid_vents() {
-    // intake grille directly over the Active Cooler
-    translate([bx(cooler_centre[0]), by(cooler_centre[1]), case_h - lid_t - eps])
-        linear_extrude(height = lid_t + 2 * eps)
-            hex_field_2d(cooler_size[0], cooler_size[1], vent_cell, vent_web);
-    if (vent_gpio || vent_port || vent_power) {
-        z = (split_z + cav_top_z) / 2;
-        if (vent_gpio)  translate([0,  cav_d / 2 + wall / 2, z])
-                            vent_wall_y(vent_w, lid_vent_h, wall + 2 * eps);
-        if (vent_power) translate([0, -(cav_d / 2 + wall / 2), z])
-                            vent_wall_y(vent_w, lid_vent_h, wall + 2 * eps);
-        if (vent_port)  translate([cav_w / 2 + wall / 2, 0, z])
-                            vent_wall_x(vent_w_x, lid_vent_h, wall + 2 * eps);
-    }
+    if (lid_vent)
+        translate([lid_vent_x, 0, case_h - lid_t - eps])
+            linear_extrude(height = lid_t + 2 * eps)
+                rotate(90) hex_block(lid_vent_cols, lid_vent_rows, vent_cell, vent_web);
 }
 
 module lid_upright() {
@@ -543,12 +616,17 @@ module lid_upright() {
         lid_vents();
         logo_cutter();
         port_cuts();
-        // self-tapping pilot up into each corner column
-        for (p = boss_pts) translate([p[0], p[1], split_z - eps])
-            cylinder(d = lid_pilot_d, h = lid_pilot_h + eps);
-        // the lid owns everything above the split
-        translate([0, 0, -case_h]) linear_extrude(height = case_h + split_z)
-            square([out_w * 3, out_d * 3], center = true);
+        if (!is_snap)
+            for (p = boss_pts) translate([p[0], p[1], split_z - eps])
+                cylinder(d = lid_pilot_d, h = lid_pilot_h + eps);
+        // the lid owns everything above the split, except its snap posts
+        difference() {
+            translate([0, 0, -case_h]) linear_extrude(height = case_h + split_z)
+                square([out_w * 3, out_d * 3], center = true);
+            if (is_snap)
+                for (p = boss_pts) translate([p[0], p[1], split_z - snap_post_len - 1])
+                    cylinder(d = snap_barb_d + 2, h = snap_post_len + 1 + eps);
+        }
     }
 }
 
@@ -558,8 +636,8 @@ module flip_for_print() {
     translate([0, 0, case_h]) rotate([180, 0, 0]) children();
 }
 
-module lid_print()      { flip_for_print() lid_upright(); }
-module logo_print_part(){ flip_for_print() logo_plug(); }
+module lid_print()       { flip_for_print() lid_upright(); }
+module logo_print_part() { flip_for_print() logo_plug(); }
 
 // ============================================================
 // Render
@@ -580,8 +658,6 @@ if (part == "bottom") {
     color("Firebrick") logo_plug();
 
 } else if (part == "exploded") {
-    // Both pieces flat on the bed, back walls facing each other across a
-    // 5 mm gap.  Footprint ~99 x 145 mm, well inside 270 x 270.
     gap = 5;
     translate([0, -(out_d + gap) / 2, 0]) color("DimGray") base();
     translate([0,  (out_d + gap) / 2, 0]) {
@@ -595,46 +671,71 @@ if (part == "bottom") {
     gap = 5;
     translate([0, -(out_d + gap) / 2, 0]) base();
     translate([0,  (out_d + gap) / 2, 0]) lid_print();
-    translate([0,  (out_d + gap) / 2, 0]) logo_print_part();
+    if (logo_two_colour) translate([0, (out_d + gap) / 2, 0]) logo_print_part();
 }
 
 // ============================================================
 // Fit report — printed on every render
 // ============================================================
 
-// Corner boss fit.  The boss has to live in the gap between the PCB's
-// corner radius and the shell's outer corner radius, measured along the
-// 45-degree diagonal.  Both numbers below must stay positive.
 pcb_arc  = [pcb_w / 2 - pcb_corner_r, pcb_d / 2 - pcb_corner_r];
 out_arc  = [out_w / 2 - out_r,        out_d / 2 - out_r];
 b        = [cav_w / 2 - boss_inset,   cav_d / 2 - boss_inset];
 gap_pcb  = norm([b[0] - pcb_arc[0], b[1] - pcb_arc[1]]) - pcb_corner_r - boss_d / 2;
 gap_wall = out_r - norm([b[0] - out_arc[0], b[1] - out_arc[1]]) - boss_d / 2;
+gap_stand = norm([b[0] - abs(hole_pts[0][0]), b[1] - hole_dy / 2])
+            - (boss_d + standoff_d) / 2;
+boss_wall = (boss_d - snap_relief_d) / 2;
 
-// Clear rectangle left on the lid's top face for the logo: outboard of
-// the intake grille, and inside a wall-thickness margin at the edges.
-// Nothing else breaks the top plate, so this is the whole usable panel.
+// Snap leg strain: cantilever, eps = 3*t*y / (2*L^2).
+leg_t     = (snap_post_d - snap_slot_w) / 2;
+leg_defl  = (snap_barb_d - snap_neck_d) / 2;
+leg_strain = 3 * leg_t * leg_defl / (2 * pow(snap_post_len, 2)) * 100;
+
+// Vent blocks vs. the things they must not run into.  The floor block sits
+// between the two standoff columns, so it is centred on the free region
+// (x = -10), not on the case.
+fv_hw = hex_block_w(floor_vent_cols, vent_cell, vent_web) / 2;
+fv_hh = hex_block_h(floor_vent_rows, vent_cell, vent_web) / 2;
+fv_gap = min([ for (h = hole_pts)
+               rect_gap(h, floor_vent_pos, fv_hw, fv_hh, standoff_d / 2) ]);
+// The lid block is rotated 90 degrees, so its rows run along X.
+lv_hw = hex_block_h(lid_vent_rows, vent_cell, vent_web) / 2;
+lv_hh = hex_block_w(lid_vent_cols, vent_cell, vent_web) / 2;
+lv_gap = min([ for (b2 = boss_pts)
+               rect_gap(b2, [lid_vent_x, 0], lv_hw, lv_hh, boss_d / 2) ]);
+
+// Clear rectangle left on the lid's top face for the logo.
 logo_margin = wall + 2;
-logo_x0 = bx(cooler_centre[0]) + cooler_size[0] / 2 + 2;
+logo_x0 = lid_vent_x + hex_block_h(lid_vent_rows, vent_cell, vent_web) / 2 + 2;
 logo_x1 = out_w / 2 - logo_margin;
 logo_y  = out_d / 2 - logo_margin;
 
 echo(str("Case outer  : ", out_w, " x ", out_d, " x ", case_h, " mm"));
 echo(str("Base height : ", split_z, " mm    Lid height: ", case_h - split_z, " mm"));
-echo(str("Boss->PCB   : ", gap_pcb,  " mm  (must be > 0)"));
-echo(str("Boss->shell : ", gap_wall, " mm  (must be > 0)"));
-echo(str("Lid screws  : 4x M3 countersunk x ", lid_screw_len, " mm  -> ",
-         lid_screw_grip, " mm grip in the lid (pilot is ", lid_pilot_h,
-         " mm; grip must be > 4 and < pilot)"));
+echo(str("Port cap    : ", split_z - port_top_z, " mm of material over the USB-C opening"));
+echo(str("Boss->PCB   : ", gap_pcb,  " mm   Boss->shell: ", gap_wall,
+         " mm   Boss->standoff: ", gap_stand, " mm  (all must be > 0)"));
+echo(str("Boss wall   : ", boss_wall, " mm around the snap relief chamber"));
+echo(str("Snap legs   : ", leg_t, " mm thick, ", snap_post_len, " mm long, ",
+         leg_defl, " mm deflection -> ", leg_strain,
+         " % strain  (keep under ~2 %)"));
 echo(str("Board screws: 2x M2.5 pan head x ", board_screw_len,
          " mm max  -> ", board_pilot_depth,
          " mm of thread.  The other two holes take the cooler's push-pins."));
-echo(str("Port/split  : tallest opening tops out at Z ", port_top_z,
-         ", split is at ", split_z,
-         split_z >= port_top_z ? "  (clear)"
-                               : "  *** SPLIT CUTS THROUGH A PORT ***"));
-echo(str("Vent rows   : base ", hex_rows(base_vent_h), " x ",
-         hex_rows(lid_vent_h), " lid  (each must be >= 2)"));
+echo(str("Lid grille  : ", lid_vent_rows, " rows x ", lid_vent_cols, " cols, spanning X ",
+         lid_vent_x - hex_block_h(lid_vent_rows, vent_cell, vent_web) / 2, " .. ",
+         lid_vent_x + hex_block_h(lid_vent_rows, vent_cell, vent_web) / 2,
+         ", Y +/-", hex_block_w(lid_vent_cols, vent_cell, vent_web) / 2));
+echo(str("Floor vents : ", floor_vent_rows, " rows x ", floor_vent_cols, " cols, ",
+         2 * fv_hw, " x ", 2 * fv_hh, " mm, clearing the standoffs by ",
+         fv_gap, " mm"));
+echo(str("Vent gaps   : lid grille clears the corner posts by ", lv_gap, " mm"));
+echo(str("Logo        : ", logo_part_sel, " at ", logo_fit, " x ", logo_h_mm,
+         " mm; thinnest stroke ", logo_stroke_mm, " mm",
+         logo_stroke_mm >= 0.8 ? "  (good)"
+       : logo_stroke_mm >= 0.5 ? "  *** thin - will print but weakly ***"
+                               : "  *** TOO THIN - this feature will vanish ***"));
 echo(str("Logo panel  : X ", logo_x0, " .. ", logo_x1,
          "   Y ", -logo_y, " .. ", logo_y, "  (", logo_x1 - logo_x0,
          " x ", 2 * logo_y, " mm)"));
@@ -642,12 +743,12 @@ echo(str("Logo panel  : X ", logo_x0, " .. ", logo_x1,
 // ============================================================
 // Regression guard
 // ============================================================
-// These positions were measured off a known-good Raspberry Pi 5 case
+// Measured off a known-good Raspberry Pi 5 case
 // ("RPi 5 case slim ports +6mm.stl"): mounting holes at world X -39.0 and
-// +19.0, USB-C centred on world X -31.30, both in a frame whose origin is
-// the board centre.  The first assert is the one that matters — an earlier
-// revision computed the hole X pattern as centred on the board, which put
-// both standoffs 10 mm out and made the port cutouts miss.
+// +19.0 and Y +/-24.5, USB-C centred on world X -31.30, all in a frame
+// whose origin is the board centre.  The first assert is the one that
+// matters — an earlier revision computed the hole X pattern as centred on
+// the board, which put both standoffs 10 mm out and made the ports miss.
 assert(abs(bx(hole_inset) + 39.0) < 0.01 &&
        abs(bx(hole_inset + hole_dx) - 19.0) < 0.01,
        "Mounting hole X no longer matches the measured Pi 5 pattern (-39.0 / +19.0)");
@@ -655,3 +756,35 @@ assert(abs(hole_dy - 49.0) < 0.01 && abs(pcb_d / 2 - hole_dy / 2 - hole_inset) <
        "Mounting hole Y no longer matches the measured Pi 5 pattern (+/-24.5)");
 assert(abs(bx(usbc_x) + 31.30) < 0.05,
        "USB-C centre no longer matches the measured Pi 5 position (-31.30)");
+assert(gap_pcb > 0.2 && gap_wall > 0.5 && gap_stand > 0.2,
+       "Corner boss collides with the PCB, the shell or a standoff");
+assert(boss_wall > 0.8,
+       "Corner boss is too thin around the snap relief chamber - raise boss_d");
+assert(!is_snap || leg_strain < 2.0,
+       "Snap leg strain too high - lengthen the post or reduce the barb");
+assert(split_z >= port_top_z + 0.5, "The split cuts through a port opening");
+// The snap only works if the three diameters are in the right order:
+// shaft slides in the neck, barb overlaps the neck enough to catch, and
+// barb still fits inside the relief chamber.
+assert(!is_snap || snap_post_d < snap_neck_d - 0.3,
+       "Snap shaft binds in the neck - reduce snap_post_d or open snap_neck_d");
+assert(!is_snap || snap_barb_d > snap_neck_d + 0.3,
+       "Snap barb barely overlaps the neck - it will not retain the lid");
+assert(!is_snap || snap_barb_d < snap_relief_d - 0.2,
+       "Snap barb cannot fit the relief chamber - raise snap_relief_d");
+assert(!is_snap || snap_relief_h > snap_barb_h + 0.5,
+       "Relief chamber too shallow for the barb to spring into");
+assert(!floor_vent || fv_gap > 1.0,
+       "Floor vent block runs into a standoff - move floor_vent_pos or drop a column");
+assert(!lid_vent || lv_gap > 1.0,
+       "Lid grille runs into a corner post - reduce lid_vent_cols");
+assert(!bumpers || bumper_recess < floor_t - 0.6,
+       "Bumper pocket leaves too little floor under it");
+assert(!bumpers || bumper_dia + bumper_clearance < 2 * (out_r - eps) ,
+       "Bumper pocket is wider than the corner it sits in");
+// Logo must fit the clear panel.  Only meaningful un-rotated.
+assert(logo_source != "svg" || logo_rot != 0 ||
+       (logo_pos[0] - logo_fit / 2 >= logo_x0 - 0.01 &&
+        logo_pos[0] + logo_fit / 2 <= logo_x1 + 0.01 &&
+        abs(logo_pos[1]) + logo_h_mm / 2 <= logo_y + 0.01),
+       "Logo overruns the clear panel on the lid");
