@@ -36,6 +36,21 @@
 // flanks, self-supporting; female thread gets 0.35 mm radial
 // clearance because it prints on a horizontal axis).
 //
+// SKIRTING AND THE WALL: the wall has a skirting board (skirting_h
+// x skirting_t), so nothing can stand flush against the wall at
+// floor level. The corner bracket handles this itself: its riser
+// column runs up past the skirting and carries a rear HEEL that
+// reaches skirting_t back to bear on the wall above the board,
+// while the flat back face below bears on the skirting's face.
+// The pole socket sits at the TOP BACK, over the heel, so the pole
+// rides just pole_standoff (5 mm) off the wall — the minimum that
+// still lets the headboard clamp's sleeve pass between pole and
+// wall. The pole therefore seats ABOVE the skirting (~z 151), not
+// at the floor: the bracket's riser is its continuation downward,
+// and a 1500 mm pole tops out around z 1655. Measure the real
+// skirting before printing — skirting_h and skirting_t are
+// parameters.
+//
 // Fits: gripping sockets are tube + 0.15 mm per side with crush
 // ribs standing 0.2 mm proud — the ribs shave on insertion, so the
 // grip survives the size scatter of extruded aluminium where a
@@ -57,11 +72,13 @@
 //   Floor = z 0. Every horizontal tube axis sits at tube_z.
 //
 // Print orientation (all parts support-free):
-//   corner — lying on a side face: layers run along both legs and
-//            the gusset, so the lean-load bending stress is
-//            in-plane with the layers. Pockets become horizontal
-//            voids with ~20 mm flat bridge ceilings, blind walls
-//            vertical, 45 degree mouth flares self-supporting.
+//   corner — lying on a side face: layers run along both legs,
+//            the gusset and the wall heel, so the lean-load
+//            bending stress is in-plane with the layers. Pockets
+//            become horizontal voids with ~20 mm flat bridge
+//            ceilings, blind walls vertical, 45 degree mouth
+//            flares self-supporting. The heel is pure profile
+//            geometry — no overhang in this orientation.
 //   endt / cross — floor face down: walls vertical, pocket floors
 //            (the tube datum) on the bed; only bridges are the
 //            ~20 mm pocket ceilings.
@@ -107,8 +124,20 @@ rib_base     = 1.6;   // Rib triangle base width
 lead_in      = 1.5;   // 45 degree flare at every pocket mouth
 bottom_gap   = 1.0;   // Extra pocket depth so a burred saw cut never hard-bottoms
 
+/* [Skirting] */
+// The wall's skirting board. The corner bracket's back face bears
+// on the skirting; its heel reaches over it to bear on the wall.
+skirting_h     = 145;  // Skirting height — MEASURE before printing
+skirting_t     = 20;   // Skirting thickness = how far the heel reaches back
+skirting_clear = 5;    // Gap between the heel's underside and the skirting top
+pole_standoff  = 5;    // Pole back face to the wall. Cannot be less than the
+                       // clamp sleeve's wall + slide clearance (~3.7), or the
+                       // headboard clamp could not pass between pole and wall
+
 /* [Sockets] */
-corner_vert_depth = 90;   // Deepest — full lean moment; angular slop ~ 2*clear/depth
+corner_vert_depth = 95;   // Pole engagement above the heel. The bracket profile
+                          // is heel_z0 + wall + this + bottom_gap long and must
+                          // stay under ~260 to print on its side on a 270 bed
 corner_foot_depth = 70;   // Same moment reacted over the 600 mm foot — lower stress
 endt_foot_depth   = 60;
 toe_depth         = 50;   // Toes only see roll loads on a short lever
@@ -180,16 +209,23 @@ h_g   = g_out / 2;
 h_s   = s_out / 2;
 tube_z = wall + tube / 2;        // Axis height of every horizontal tube
 
-// Corner bracket: foot leg along +X, vertical leg up. The vertical
-// pocket's seat web IS the foot pocket's ceiling — one shared wall.
-foot_leg_len = wall + corner_foot_depth + bottom_gap;   // 74.36
-vert_leg_h   = g_out + corner_vert_depth + bottom_gap;  // 118.02
+// Corner bracket: foot leg along +X, riser column up, pole socket
+// at the BACK over the wall heel so the pole rides pole_standoff
+// off the wall. The pole therefore seats ABOVE the skirting — the
+// bracket's riser is the pole's continuation down to the foot.
+foot_leg_len = wall + corner_foot_depth + bottom_gap;             // 74.36
+heel_z0      = skirting_h + skirting_clear;                       // Wall heel underside
+vert_leg_h   = heel_z0 + wall + corner_vert_depth + bottom_gap;   // 249.36
+socket_cx    = tube / 2 + grip_clear + pole_standoff - skirting_t; // Pole axis X
 
 // End-T / cross: arm reach from the local origin to each pocket mouth.
 endt_foot_reach = h_g + endt_foot_depth + bottom_gap;   // 74.51
 endt_arm_reach  = h_g + toe_depth + bottom_gap;         // 64.51
 cross_arm_reach = h_s + toe_depth + bottom_gap;         // 64.71
-cross_half_x    = max(sleeve_len / 2, h_g + web_gusset_leg);  // Gussets outreach the sleeve
+cross_half_x    = sleeve_len / 2;             // Gussets are capped at the mouths
+cross_gusset_x  = sleeve_len / 2 - 1;         // Along-sleeve gusset reach — must
+                                              // STOP before the sleeve mouth or
+                                              // the gusset overhangs it as a fin
 
 // End caps.
 cap_in  = tube + 2 * cap_clear;
@@ -200,7 +236,7 @@ cap_h   = cap_face + cap_depth;
 foot_x0 = wall + bottom_gap;          // Foot tube start (inside the corner)
 foot_x1 = foot_x0 + foot_len;         // Foot tube tip
 endt_x  = foot_x1 + bottom_gap + h_g; // End-T local origin
-vert_z0 = g_out + bottom_gap;         // Vertical tube bottom
+vert_z0 = heel_z0 + wall + bottom_gap; // Pole bottom — above the skirting
 
 // Headboard clamp / thumbscrew. Male thread first, female = male
 // grown by the clearances (radial) and widened flanks (axial).
@@ -237,6 +273,16 @@ assert(rib_proud < grip_clear + 0.15,
        "crush ribs too proud — the tube cannot be inserted");
 assert(wall > 2 * 0.42,
        "socket wall thinner than 2 extrusion loops");
+assert(vert_leg_h > heel_z0 + 20,
+       "wall heel bearing face under 20 mm — raise corner_vert_depth past the skirting");
+assert(pole_standoff >= wall + slide_clear + 1,
+       "pole_standoff too small — the headboard clamp's sleeve cannot pass between pole and wall");
+assert(pole_standoff + tube + 2 * grip_clear + wall <= skirting_t + g_out,
+       "vertical socket does not fit within the heel + riser depth");
+assert(vert_leg_h <= 260,
+       "corner bracket profile too long to print on its side on the 270 mm bed");
+assert(cross_arm_reach - 0.3 * toe_depth > h_s + web_gusset_leg + screw_d / 2 + 1,
+       "cross toe screw holes fall inside the gussets — shrink web_gusset_leg");
 assert(ts_f_phi_root < 175,
        "female thread root lobe nearly a full circle — reduce ts_root or ts_clear_ax");
 assert(ts_tip_d / 2 < ts_min_r,
@@ -263,9 +309,16 @@ echo(str("FIT: engagement — corner vert ", corner_vert_depth,
 echo(str("CUT LIST per side frame: 1 x ", vertical_len,
          ", 1 x ", foot_len, ", 4 x ", toe_len, " mm of ",
          tube, "x", tube, " tube"));
-echo(str("ASSEMBLED envelope: ", endt_x + h_g, " (X) x ",
+echo(str("ASSEMBLED envelope: ", skirting_t + endt_x + h_g,
+         " (X, wall face to foot tip) x ",
          2 * (h_s + bottom_gap + toe_len), " toe stance (Y) x ",
          vert_z0 + vertical_len + (caps ? cap_face : 0), " (Z) mm"));
+echo(str("SKIRTING: heel bears on the wall z ", heel_z0, "-", vert_leg_h,
+         ", back face bears on the skirting below ", skirting_h,
+         " — measure the real board before printing"));
+echo(str("POLE: back face ", pole_standoff, " mm off the wall, seats at z ",
+         vert_z0, " (above the skirting); a ", vertical_len,
+         " tube tops out at z ", vert_z0 + vertical_len));
 echo(str("WALLS: ", wall, " mm = ", wall / 0.42, " extrusion lines at 0.42 mm"));
 echo(str("CLAMP: thumbscrew M", ts_major_d, "x", ts_pitch, " printed thread, ",
          ts_press_eng / ts_pitch, " turns engaged at the pole, head-to-boss gap ",
@@ -361,6 +414,13 @@ module corner_profile_2d() {
     polygon([[g_out, g_out],
              [g_out + gusset_leg, g_out],
              [g_out, g_out + gusset_leg]]);
+    // Wall heel: reaches back over the skirting to bear on the
+    // wall. Everything below heel_z0 behind the back face is kept
+    // clear — that space belongs to the skirting board. The +1
+    // overlaps into the leg (rounded_outline() would disconnect a
+    // shape that merely touches).
+    translate([-skirting_t, heel_z0])
+        square([skirting_t + 1, vert_leg_h - heel_z0]);
 }
 
 module corner_bracket() {
@@ -373,9 +433,10 @@ module corner_bracket() {
                 // Foot pocket: opens +X, blind web at the outer corner.
                 translate([foot_leg_len, 0, h_g]) rotate([0, 90, 0])
                     pocket_cut(corner_foot_depth + bottom_gap, g_in);
-                // Vertical pocket: opens up; its seat web is the foot
-                // pocket's ceiling — one shared wall by construction.
-                translate([h_g, 0, vert_leg_h])
+                // Vertical pocket: opens up, sitting BEHIND the riser
+                // over the heel so the pole rides pole_standoff off the
+                // wall. Its seat web is the heel's top skin.
+                translate([socket_cx, 0, vert_leg_h])
                     pocket_cut(corner_vert_depth + bottom_gap, g_in);
             }
             if (crush_ribs) {
@@ -386,7 +447,7 @@ module corner_bracket() {
                     pocket_ribs(corner_foot_depth + bottom_gap, g_in, ["-x"]);
                 // Vertical pocket: ribs on both X faces (print-vertical);
                 // the Y faces are the bed side and the bridge side.
-                translate([h_g, 0, vert_leg_h])
+                translate([socket_cx, 0, vert_leg_h])
                     pocket_ribs(corner_vert_depth + bottom_gap, g_in, ["+x", "-x"]);
             }
         }
@@ -395,7 +456,7 @@ module corner_bracket() {
             // orientation, so they print as clean circles.
             translate([foot_leg_len - 0.55 * corner_foot_depth, -h_g - 1, h_g])
                 screw_bore();
-            translate([h_g, -h_g - 1, vert_leg_h - 0.55 * corner_vert_depth])
+            translate([socket_cx, -h_g - 1, vert_leg_h - 0.55 * corner_vert_depth])
                 screw_bore();
         }
     }
@@ -464,10 +525,13 @@ module endt_bracket() {
 module cross_footprint_2d() {
     square([sleeve_len, s_out], center = true);
     translate([-h_g, -cross_arm_reach]) square([g_out, 2 * cross_arm_reach]);
-    // Gussets in all four sleeve/arm corners.
+    // Gussets in all four sleeve/arm corners. Their along-sleeve
+    // leg is CAPPED at cross_gusset_x: the sleeve ends at its
+    // mouths, and a gusset running past a mouth would hang beyond
+    // the body as a free fin with an open slot behind it.
     for (sx = [-1, 1], sy = [-1, 1]) scale([sx, sy])
         polygon([[h_g, h_s],
-                 [h_g + web_gusset_leg, h_s],
+                 [cross_gusset_x, h_s],
                  [h_g, h_s + web_gusset_leg]]);
 }
 
@@ -499,8 +563,11 @@ module cross_bracket() {
                     pocket_ribs(toe_depth + bottom_gap, g_in, ["+x", "-x"]);
         }
         if (screw_holes) {
+            // Toe screws sit at 0.3 x depth from the mouth — further
+            // out than the house 0.55, so the bores clear the gussets
+            // instead of drilling through their slopes.
             for (s = [-1, 1])
-                translate([-h_g - 1, s * (cross_arm_reach - 0.55 * toe_depth), h_g])
+                translate([-h_g - 1, s * (cross_arm_reach - 0.3 * toe_depth), h_g])
                     rotate([0, 0, -90]) screw_bore();
             // Lock screw: vertical, through the sleeve's top wall. Not a
             // backup here — it is what fixes the station on the tube.
@@ -689,7 +756,7 @@ module assembly() {
 
     // Aluminium, seated bottom_gap shy of each blind web.
     %translate([foot_x0, 0, tube_z]) rotate([0, 90, 0]) ghost_tube(foot_len);
-    %translate([h_g, 0, vert_z0]) ghost_tube(vertical_len);
+    %translate([socket_cx, 0, vert_z0]) ghost_tube(vertical_len);
     for (s = [-1, 1]) {
         %translate([endt_x, s * (h_g + bottom_gap), tube_z])
             rotate([s > 0 ? -90 : 90, 0, 0]) ghost_tube(toe_len);
@@ -697,17 +764,18 @@ module assembly() {
             rotate([s > 0 ? -90 : 90, 0, 0]) ghost_tube(toe_len);
     }
 
-    // Headboard clamp on the pole, thumbscrew pressed home, and a
-    // ghost slab where the headboard itself will stand.
-    color("firebrick") translate([h_g, 0, clamp_demo_z]) clamp_bracket();
-    color("gold") translate([h_g, tube / 2 + ts_tip_len + ts_len + ts_head_t,
+    // Headboard clamp on the pole, thumbscrew pressed home.
+    color("firebrick") translate([socket_cx, 0, clamp_demo_z]) clamp_bracket();
+    color("gold") translate([socket_cx, tube / 2 + ts_tip_len + ts_len + ts_head_t,
                              clamp_demo_z + clamp_screw_z])
         rotate([90, 0, 0]) clamp_thumbscrew();
-    %translate([h_g + h_s + clamp_plate_t, -300, 400])
-        cube([20, 600, 1050]);
+
+    // The skirting board the heel reaches over — its face is the
+    // plane the bracket's back rests on, the wall is behind it.
+    %translate([-skirting_t, -150, 0]) cube([skirting_t, 300, skirting_h]);
 
     if (caps) color("gold") {
-        translate([h_g, 0, vert_z0 + vertical_len + cap_face])
+        translate([socket_cx, 0, vert_z0 + vertical_len + cap_face])
             rotate([180, 0, 0]) end_cap();
         for (s = [-1, 1]) {
             translate([endt_x, s * (h_g + bottom_gap + toe_len + cap_face), tube_z])
@@ -721,12 +789,12 @@ module assembly() {
 // Printplate layout — every part flat and support-free, inside the
 // 270 x 270 bed centred on the origin. Positions are variables so
 // the bed-fit check below stays honest if anything moves.
-pp_corner = [-130, -125];  // corner, on its side, foot leg along +X
-pp_endt   = [90, -55];     // end-T, floor down
-pp_cross  = [-65, 90];     // cross, floor down, rotated 90 (long axis on X)
-pp_caps   = [[40, 40], [80, 40], [120, 40], [40, 80], [80, 80]];
+pp_corner = [-105, -130];  // corner, on its side, foot leg along +X, heel at -X
+pp_endt   = [90, -60];     // end-T, floor down
+pp_cross  = [50, 90];      // cross, floor down, rotated 90 (long axis on X)
+pp_caps   = [[-8, -120], [-8, -88], [-8, -56], [-8, -24], [-8, 8]];
 
-pp_min = [min(concat([pp_corner[0], pp_endt[0] - endt_foot_reach,
+pp_min = [min(concat([pp_corner[0] - skirting_t, pp_endt[0] - endt_foot_reach,
                       pp_cross[0] - cross_arm_reach],
                      [for (c = pp_caps) c[0] - cap_out / 2])),
           min(concat([pp_corner[1], pp_endt[1] - endt_arm_reach,
@@ -778,12 +846,17 @@ if (part == "corner") {
     translate([40, 0, 0]) clamp_thumbscrew();
 
 } else if (part == "printplate") {
-    // Each top-level statement is one lazy-union build item:
-    // 1 corner, 2 end-T, 3 cross, 4 caps (x5, one object).
+    // Each top-level statement is one lazy-union build item, so
+    // the slicer sees every part as its own object:
+    // 1 corner, 2 end-T, 3 cross, 4-8 caps.
     translate([pp_corner[0], pp_corner[1], h_g]) rotate([-90, 0, 0]) corner_bracket();
     translate(pp_endt) endt_bracket();
     translate(pp_cross) rotate([0, 0, 90]) cross_bracket();
-    union() { for (c = pp_caps) translate(c) end_cap(); }
+    translate(pp_caps[0]) end_cap();
+    translate(pp_caps[1]) end_cap();
+    translate(pp_caps[2]) end_cap();
+    translate(pp_caps[3]) end_cap();
+    translate(pp_caps[4]) end_cap();
 
 } else if (part == "assembly") {
     assembly();
