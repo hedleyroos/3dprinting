@@ -44,6 +44,37 @@ Consider the stresses a printed item may need to withstand (shear, tensile, comp
 model accordingly. We must however try and avoid supports when printing if possible. If the stresses are
 such that a single orientation will not suffice, then split the model into components that can be assembled.
 
+## Reinforcing collars for tube sockets
+
+**Any printed socket that grips tubing and carries real load gets a separate slide-on collar,
+printed in a different orientation.** This is not optional and not a later refinement — it is the
+only way to carry torque into a printed socket, and it must be designed in from the start.
+
+The reason is layer adhesion. A socket is a box around the tube, and whichever of its walls lie
+**parallel to the layer planes are whole layers**. Lever the tube sideways and those walls are not
+bent, they are peeled off the stack in pure tension across the layer bonds — the one direction FDM
+has no fibre in. Thicker walls and denser infill do not help, because the load is carried across the
+bonds rather than along them. The tube itself is far stiffer than the bracket, so all of the torque
+arrives at that interface.
+
+A collar solves it by changing the direction of the material, not the amount:
+
+- Print the collar **standing, closed-face down**, so its layers run perpendicular to the host
+  part's. The bursting load then acts as **hoop tension, in-plane** for the collar.
+- Size the bore to the socket's outer section plus ~0.15 mm per side, with a flared mouth.
+- Cover the socket **mouth**, where the reaction from a levered tube peaks.
+- **Bore corners must be SHARP, plus corner relief** (~1 mm). The section being slid over has sharp
+  arrises; `corner_round` in a profile becomes rounded *edges running across* the collar, not
+  rounded corners of the section. A rounded bore binds — verify with `intersection()` against the
+  host part and require an empty result.
+- Run the socket's self-tapper **through the collar as well**, so one screw pins collar, host and
+  tube together and the collar cannot creep.
+
+**Leave the collar somewhere to land.** A collar can only be fitted if the socket's outside has a
+constant-section run reaching an open end. Gussets, webs and fillets crowding a socket's exterior
+make it permanently unreinforceable — the collar simply cannot be slid on afterwards. Plan that
+landing at the same time as the socket, before adding bracing.
+
 ## Mesh quality / resolution
 
 Every `.scad` file MUST define global quality variables under a `/* [Quality] */`
