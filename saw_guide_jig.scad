@@ -24,6 +24,11 @@
 //     Every reference lands on a whole centimetre. Engraved
 //     rulers on both ear tops (cm numerals, 5 mm minors) and
 //     tick lines on the wing edges at tube height.
+//   * SHOE FENCE: a rail across the platform in front of the
+//     jigsaw slot. The side of the shoe rides against it while
+//     the saw advances — the slot steers the blade, the fence
+//     steers the machine. Its offset MUST be measured off the
+//     actual saw (blade to shoe edge).
 //   * TUBE LOCK: a printed M10x2.5 thumbscrew (thread numbers
 //     proven in magnet_pill_container / headboard clamp) threads
 //     down through the wing flare at 45 degrees, normal to the
@@ -55,8 +60,9 @@
 //   4. Jigsaw: orbital/pendulum action OFF for aluminium. Rest
 //      the blade in the slot on either side of the tube first —
 //      the slot is open past both walls, so any blade length
-//      hangs free ("garage") — then start the saw and advance.
-//      Let the slot do the steering; do not twist the saw.
+//      hangs free ("garage") — then start the saw with the shoe
+//      pressed lightly sideways against the fence and advance.
+//      Keep that side pressure on all the way through the cut.
 //   5. Hacksaw: drop the blade into the narrow slot, cut until
 //      it bottoms out 3 mm below the tube.
 //
@@ -64,6 +70,8 @@
 //   * jig_blade_t — YOUR blade's body thickness. Teeth are set
 //     slightly wider and will shave the slot's leading face on
 //     the first cut; that is normal and self-clearing.
+//   * fence_offset — blade to the shoe's side edge on YOUR saw,
+//     and check fence_h clears the saw body's side profile.
 //   * jig_reach — blade tip below the shoe sole, blade fitted,
 //     at the BOTTOM of the stroke. Sets the jig height.
 //   * tube — the real tube stock (house rule: never model to a
@@ -136,6 +144,21 @@ top_wing   = 15;    // Extra platform width EACH side, so the shoe has glide
 lead_in    = 1.5;   // 45 degree flare at both tunnel mouths
 slot_flare = 0.8;   // 45 degree entry flare where a slot meets the platform
 corner_round = 2;   // 2D rounding on convex outer corners
+
+/* [Fence] */
+// Raised rail across the platform, parallel to the cut, on the
+// FRONT side of the jigsaw slot. The side of the jigsaw's shoe
+// rides against its face while the saw advances, so the saw
+// cannot yaw or drift — the slot steers the blade, the fence
+// steers the machine.
+fence        = true;
+fence_offset = 40;   // Blade to the shoe's side edge — MEASURE your saw:
+                     // perpendicular distance from the blade to the shoe
+                     // edge that faces the jig's FRONT while cutting
+fence_w      = 8;    // Rail width
+fence_h      = 6;    // Rail height above the platform. Check your saw's
+                     // side profile first: the body must clear this where
+                     // it overhangs the shoe edge
 
 /* [Ears] */
 ear_w          = 20;    // Clamp flange width each side, full jig length
@@ -227,6 +250,8 @@ land_back  = jig_len - x_hack1;         // 29.55
 tip_min_z = top_z - jig_reach;                    // Deepest tip travel
 tip_hi_z  = top_z - (jig_reach - jig_stroke);     // Tip at TOP of stroke
 
+x_fence = jig_station - fence_offset;             // Fence working face (20)
+
 // Thumbscrew geometry. The axis is the outward normal of the
 // bore's upper +Y face: direction (0, 1, 1)/sqrt(2), through that
 // face's centre. Local frame: z = 0 at the tube face, +z outward;
@@ -284,7 +309,11 @@ assert(ear_w >= (screw_holes ? screw_diameter + 6 : 10),
        "ear too narrow for its job");
 assert(!ruler || ear_w >= ear_haunch + 9 + rule_text + 2,
        "ear too narrow for ticks plus numerals — widen ear_w or drop the ruler");
-assert(jig_len <= 270 && foot_w <= 270 && top_z <= 256,
+assert(!fence || x_fence - fence_w >= 3,
+       "fence hangs off the front of the platform — fence_offset too large for jig_station");
+assert(!fence || x_fence <= x_jig0 - slot_flare - 2,
+       "fence reaches the jigsaw slot's entry flare — fence_offset too small");
+assert(jig_len <= 270 && foot_w <= 270 && top_z + (fence ? fence_h : 0) <= 256,
        "jig exceeds the 270 x 270 x 256 build volume");
 // Thumbscrew guards.
 assert(!tube_lock || tube_screw_x - boss_d / 2 > x_hack1 + 2,
@@ -319,6 +348,11 @@ echo(str("SHOE: ", shoe_w, " mm shoe spans the slot with ", land_front,
 echo(str("CLAMP: ears run the full ", jig_len,
          " mm — clamp one each side of the slot in use; shoe needs x ",
          jig_station - shoe_w / 2, "-", jig_station + shoe_w / 2, " clear"));
+if (fence)
+    echo(str("FENCE: working face ", fence_offset,
+             " mm in front of the jigsaw kerf centre, ", fence_h,
+             " mm tall — MEASURE blade-to-shoe-edge on the actual saw",
+             " before printing"));
 if (tube_lock)
     echo(str("LOCK: M", ts_major_d, "x", ts_pitch,
              " printed thumbscrew at x ", tube_screw_x,
@@ -538,6 +572,20 @@ module ruler_cuts() {
     }
 }
 
+// Shoe fence: a rail across the platform on the front side of the
+// jigsaw slot. Its back face (towards the slot) is the working
+// face — dead flat, full height, spanning the whole winged
+// platform so the shoe is guided over the entire traverse. The
+// ends are bevelled in plan so the shoe edge cannot catch when
+// it is set down against the rail.
+module fence_rail() {
+    translate([0, 0, top_z - 1]) linear_extrude(height = fence_h + 1)
+        polygon([[x_fence,           -top_w / 2],
+                 [x_fence,            top_w / 2],
+                 [x_fence - fence_w,  top_w / 2 - 3],
+                 [x_fence - fence_w, -top_w / 2 + 3]]);
+}
+
 // Thumbscrew boss and female thread, in the jig frame. The local
 // +Z axis is the outward normal of the bore's upper +Y face:
 // rotate([-45, 0, 0]) about the face-centre point.
@@ -556,6 +604,7 @@ module jig() {
     difference() {
         union() {
             body();
+            if (fence) fence_rail();
             if (tube_lock) lock_boss();
         }
         mouth_flare();                                    // front mouth
