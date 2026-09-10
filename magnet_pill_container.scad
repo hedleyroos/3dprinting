@@ -1,7 +1,7 @@
 // ============================================================
-// Magnet Pill Container + Adjustable-Height Stand
+// Magnet Pill Container + Two-Beam Experiment Bench
 //
-// A magnet-storage case and the stand it lives on.
+// A magnet-storage case and the bench it works on.
 //
 // THE CASE
 //   * 13 mm bore, 80 mm usable depth.
@@ -9,22 +9,36 @@
 //     is visible from outside.
 //   * A screw-on cap that finishes FLUSH with the body: the
 //     closed case is one smooth 21 mm cylinder, no shoulder.
+//   * A DELIBERATELY THIN floor, so the bottom magnet in the
+//     stack sits as close as it can to whatever is underneath.
 //
-// THE STAND
+// THE BENCH
 //   * A weighted base plate with a hollow fill cavity in its
 //     underside, closed by a snap-in cover.  Fill it with sand,
 //     coins or shot for stability.  (Prefer sand or coins —
 //     STEEL shot will be pulled at by the magnets.)
-//   * A solid square tower rising from the centre.  Square so
-//     the carrier cannot rotate, and so the case can be turned
-//     to any of four faces.
-//   * A holder that slides freely up the tower and is locked at
+//   * TWO identical square beams, standing in two identical
+//     sockets a fixed pitch apart.  Square so nothing that
+//     slides on them can rotate.  One beam carries the magnet
+//     case; the other carries the plate clamp.  They face each
+//     other across the middle of the base.
+//   * A holder that slides freely up its beam and is locked at
 //     any height by a PRINTED thumbscrew — no hardware at all.
-//     The case is NOT a separate clip-in part: its tube and the
-//     sliding sleeve are one printed body, fused where they
-//     overlap, with the viewing slit facing outward.  Nothing to
-//     spring, rattle or work loose.  Only the cap comes off, and
-//     it unscrews without disturbing the holder.
+//     The case is NOT a separate clip-in part: its tube, a
+//     cantilever arm and the sliding sleeve are one printed
+//     body, with the viewing slit facing outward.  The arm holds
+//     the case well clear of the beam so the magnets can be
+//     brought down onto a workpiece with nothing in the way.
+//     Only the cap comes off, and it unscrews without
+//     disturbing the holder.
+//   * An EDGE CLAMP on the second beam: a flat slab the metal
+//     lies on, and two C-shaped grips that hook over the slab's
+//     front edge and take the workpiece by its two side edges.
+//     ONE screw per grip presses the metal down, squeezes the
+//     slab, and locks the grip's position, all at once.  The
+//     metal is worked on where it OVERHANGS the slab, and there
+//     both its faces are bare — which is the whole point, since
+//     a magnet must reach the metal with no plastic between.
 //
 // Standalone — no external dependencies.  All thread geometry
 // is generated from scratch (see THREAD GENERATION below); no
@@ -33,15 +47,18 @@
 //
 // Coordinate system:
 //   Z = up, origin at the centre of the base plate's underside
-//   (i.e. on the print bed).  The case and the carrier are each
+//   (i.e. on the print bed).  +Y runs from the clamp beam toward
+//   the holder beam, which is the direction the case reaches and
+//   the direction the clamp's slab reaches, in opposite senses.
+//   The case, the carrier, the clamp and the grips are each
 //   modelled in their own local frame with z = 0 at their base,
 //   and are translated into place for the assembled view.
 //
 // Print orientation — every part prints WITHOUT supports:
-//   * Base   — upright, tower pointing up.  The fill cavity
+//   * Base   — upright, both hubs pointing up.  The fill cavity
 //              opens downward; its ceiling bridges over pockets
 //              no wider than ~19 mm.  The first layer is a wide
-//              square ring, so adhesion is good, but a brim
+//              rectangular ring, so adhesion is good, but a brim
 //              does no harm on a cold bed.
 //   * Cover  — flat.
 //   * Case   — upright, floor on the bed.  The bore opens
@@ -50,27 +67,52 @@
 //              a rounded top.
 //   * Cap    — closed top DOWN, so the internal thread's 45 deg
 //              overhangs print unsupported.
-//   * Holder — upright, sleeve and case bottoms both on the bed.
-//              Case and sleeve axes are parallel, so one
-//              orientation suits both: the bore opens upward and
-//              the 45 deg thread flanks stay self-supporting.
-//              The thumbscrew's threaded hole is horizontal in
-//              this orientation, so it is given extra radial
+//   * Holder — upright, sleeve, arm and case bottoms all on the
+//              bed.  Case and sleeve axes are parallel and the
+//              arm is one constant section swept along that
+//              axis, so a single orientation suits all three:
+//              the bore opens upward, the 45 deg thread flanks
+//              stay self-supporting, and the arm has no overhang
+//              anywhere.  The thumbscrew's threaded hole is
+//              horizontal here, so it is given extra radial
 //              clearance to absorb the droop on its upper wall.
+//   * Clamp  — upright like the holder.  The slab starts on the
+//              bed and every wall is vertical, so there is
+//              nothing to support.
+//   * Grip   — ON ITS BACK, web face down, so the C's throat
+//              opens UPWARD.  This is the whole reason the grip
+//              is a separate part.  Left upright the throat would
+//              have a horizontal roof, which is an unsupported
+//              overhang; on its back both jaw faces become
+//              vertical walls and the web becomes a floor.  It
+//              also turns the screw's reaction, which tries to
+//              spread the C, into a load ALONG the layers rather
+//              than across the bonds.
 //   * Screw  — head DOWN, shaft up, so its external thread
 //              prints in the good direction.
+//
+// ONE PRINT PLATE.  part = "exploded" lays the whole machine out on a single
+// 270 x 270 bed — all seventeen objects — so `make magnet_pill_container`
+// builds everything, with no second command to forget and no way to end up
+// having printed half a machine.
 //
 // All units: millimeters.
 // ============================================================
 
 /* [Part] */
 // holder, cap/top, base, cover, thumbscrew, assembly/both, exploded
-part = "assembly";  // [holder:Case + carrier (one part), post:Post, foot:Stabiliser foot, clamp:Plate clamp, jaw:Clamp moving jaw, cap:Cap, base:Base + socket hub, cover:Base cover, thumbscrew:Thumbscrew, vicescrew:Vice screw, assembly:Assembled upright, horizontal:Laid flat, exploded:Print layout]
+part = "assembly";  // [holder:Case + carrier (one part), post:Beam, foot:Stabiliser foot, clamp:Edge clamp slab, grip:Edge grip, cap:Cap, base:Base + both sockets, cover:Base cover, thumbscrew:Thumbscrew, vicescrew:Grip screw, assembly:Assembled upright, horizontal:Laid flat, exploded:Print plate — the whole machine]
 
 /* [Case] */
 bore_d          = 13;    // Inner diameter of the tube
 inner_depth     = 80;    // Usable depth for the magnet stack (includes the neck)
-tube_floor_t    = 2.5;   // Thickness of the case's closed floor
+tube_floor_t    = 1.6;   // Thickness of the case's closed floor.  Four layers at
+                         // 0.4 mm.  This is the ONLY plastic between the bottom
+                         // magnet and the workpiece, and field strength falls off
+                         // steeply, so every tenth of a millimetre here is worth
+                         // more than it looks.  The stack weighs well under 100 g,
+                         // so four layers carry it easily; it is a knock on a hard
+                         // edge, not the magnets, that would break a thinner floor.
 neck_wall       = 1.35;  // Wall thickness of the threaded neck (thinnest section)
 cap_wall        = 1.65;  // Side wall thickness of the cap
 cap_top_t       = 2.5;   // Thickness of the cap's closed top
@@ -96,7 +138,13 @@ flute_r         = 1.2;   // Radius of each scallop
 flute_depth     = 0.55;  // How deep each scallop bites into the cap wall
 
 /* [Base plate] */
-plate_size      = 90;    // Square base plate, across the flats
+// Rectangular, because it now carries TWO beams in line.  The long axis runs
+// along Y, between the beams; the short axis is across them.
+plate_x         = 90;    // Base plate across the beams
+beam_pitch      = 110;   // Centre-to-centre spacing of the two beam sockets.
+                         // Sized so the case, reaching in from its own beam,
+                         // lands over the middle of the clamped workpiece and
+                         // still clears the clamp's sleeve and slab.
 plate_h         = 14;    // Total plate thickness
 plate_ch        = 2.5;   // Chamfer on the plate's top and bottom edges
 plate_corner_r  = 6;     // Corner rounding of the plate
@@ -158,18 +206,27 @@ num_lift        = 0.5;   // Gap between a major tick and its number, along the b
                          // it, so the 0 is not half-swallowed by the hub.
 
 /* [Holder] */
-screw_side      = 90;    // Which face both clamp screws sit on, degrees about Z.
-                         // 0 = the back (opposite the case), 90 = the right side.
-                         // Keep this at +/-90 so that when the post is laid flat
-                         // with the cases upward, the screws point sideways
-                         // instead of down into the bench.
-slide_clear     = 0.35;  // Per-side clearance between the sleeve and the tower
+screw_side      = 90;    // Which face the holder's and the hubs' clamp screws sit
+                         // on, degrees about Z.  0 = the back (opposite the case),
+                         // 90 = the right side.  Keep this at +/-90 so that when a
+                         // beam is laid flat with the case upward, the screw points
+                         // sideways instead of down into the bench.  Both hubs use
+                         // it too: they are spaced along the bench rather than
+                         // across it, so their two screws end up side by side
+                         // rather than pointing at each other.
+slide_clear     = 0.35;  // Per-side clearance between a sleeve and its beam
 sleeve_wall     = 3;     // Wall thickness of the sliding sleeve
 carrier_h       = 40;    // Height of the sleeve
-case_merge      = 2;     // How deep the case tube sinks into the sleeve's outer
-                         // face.  This overlap IS the weld between them, so more
-                         // is stronger — but it must stay under sleeve_wall or
-                         // the case would break through into the tower bore.
+case_gap        = 28;    // Clear air between the sleeve's outer face and the case's
+                         // outer surface, bridged by a cantilever arm.  The case used
+                         // to OVERLAP the sleeve by 2 mm and be welded to it by that
+                         // overlap; 28 mm of gap therefore stands it 30 mm further out
+                         // than it used to be.  That reach is what lets a workpiece
+                         // pass underneath with the beam out of the way.
+arm_w           = 10;    // Arm thickness, measured across the beam
+arm_fillet      = 5;     // Radius blended into both ends of the arm.  Filling the
+                         // re-entrant corners is what stops the arm root being a
+                         // stress riser; the arm itself is nowhere near its limit.
 
 /* [Thumbscrew] */
 ts_pitch        = 2.5;   // Thumbscrew thread pitch
@@ -181,7 +238,7 @@ ts_len          = 12;    // Threaded shaft length — see ts_clamp_gap
 ts_head_d       = 20;    // Knurled head diameter
 ts_head_t       = 6;     // Knurled head thickness
 ts_head_flutes  = 12;    // Grip scallops around the head
-ts_tip_d        = 7;     // Flat dog point that bears on the tower
+ts_tip_d        = 7;     // Flat dog point that bears on the beam
 ts_tip_len      = 2;     // Length of that dog point
 ts_clear_r      = 0.35;  // Radial clearance — larger than the cap's, because this
                          // female thread is printed on a horizontal axis
@@ -189,7 +246,11 @@ boss_d          = 17;    // Diameter of the thumbscrew boss on the sleeve
 boss_len        = 8;     // How far the boss stands off the sleeve
 
 /* [Stabiliser foot] */
-foot_span       = 76;    // Total width of the foot across the beam
+foot_span       = 110;   // Total width of the foot across the beam.  Widened from 76:
+                         // the case now hangs 52 mm off the beam instead of 22, which
+                         // puts the rig's mass nearly twice as high when it is laid
+                         // flat.  A 76 mm foot would leave only a few degrees of
+                         // margin before it rolled over.
 foot_len        = 40;    // Length of the foot along the beam
 foot_pad_t      = 5;     // Thickness of the flat pad at its outer edges
 foot_rise       = 16;    // How far the buttress climbs the sleeve's sides
@@ -198,37 +259,69 @@ foot_screw_side = 180;   // Which face the foot's clamp screw sits on.  180 puts
                          // opposite the pad, so it points UP when the beam is laid
                          // flat and the pad is on the bench.
 
-/* [Plate clamp] */
-// A parallel-jaw clamp for holding flat metal horizontally: anything from a
-// 20 mm disc to a 120 mm x 40 mm plate.  The mouth is open at the front AND
-// both sides, so a plate wider than the jaws simply overhangs them.
-clamp_h         = 40;    // Sleeve height, matching the holder and the foot
-jaw_w           = 76;    // Width of the jaws across the beam
-mouth_back      = 20;    // Back wall of the mouth, from the beam axis
-mouth_front     = 48;    // Front lip of the jaws, from the beam axis
-jaw_arm_t       = 10;    // Thickness of each arm of the C
-grip_max        = 6;     // Thickest metal the jaws will take
-jaw_t           = 8;     // Moving jaw thickness
-jaw_inset       = 1;     // Clearance of the moving jaw inside the mouth
-stem_d          = 8;     // Guide stem diameter
-stem_x          = 28;    // Guide stem spacing, +/- from the centre
-stem_len        = 24;    // Guide stem length.  Must stay engaged in the arm at every
-                         // jaw position, so it also serves as an opening gauge.
-stem_clear      = 0.3;   // Per-side clearance of the stems in the arm
-grip_rib_p      = 2;     // Pitch of the grip ribs on the fixed shelf
-grip_rib_h      = 0.5;   // Height of those ribs
-body_merge      = 2;     // How far the clamp body sinks into the sleeve face
-vs_len          = 22;    // Vice screw thread length — longer than the beam screws,
+/* [Edge clamp] */
+// Holds flat metal by its two SIDE EDGES only, and does it with one screw per
+// side.  A flat slab reaches forward off a sliding sleeve; the metal lies on
+// top of the slab and overhangs its front edge.  Two C-shaped grips hook over
+// that edge and can be slid anywhere along it.
+//
+// Each grip's single screw does three jobs at once: it presses the metal down,
+// it squeezes the slab between the metal and the grip's lower leg, and by
+// doing so it locks the grip's own position.  There is nothing else to
+// tighten, which is why the whole station needs three screws rather than
+// seven.  The metal is worked on where it overhangs the slab, and there both
+// faces are completely bare.
+clamp_h          = 40;   // Sleeve height, matching the holder and the foot
+clamp_screw_side = 180;  // Which face the clamp's BEAM screw sits on.  180 puts it
+                         // behind the beam, away from the slab.  On face 90 the
+                         // screw head swings out to within 5 mm of the slab.
+slab_t           = 14;   // Slab thickness.  The grips clamp through it, so it is
+                         // part of what their throat has to swallow.
+slab_reach       = 36;   // How far the slab's front edge stands from the beam axis.
+                         // Everything forward of that edge is bare metal.
+slab_half        = 62;   // Half the slab's width.  Sets how far apart the grips go,
+                         // and therefore the widest workpiece.
+slab_merge       = 2;    // How far the slab sinks into the sleeve's face
+
+grip_max         = 6;    // Thickest metal the grips will take
+grip_w           = 18;   // Grip width along the slab's edge
+grip_screw_in    = 8;    // Inboard end of the grip to its screw axis.  This is what
+                         // stops the two grips meeting, so it sets the narrowest
+                         // workpiece — but it cannot go much below 8 or there is no
+                         // meat left around the thread.
+grip_bite        = 4;    // How far inboard of the metal's edge the screw lands.  The
+                         // flat tip is 7 mm across, so 4 keeps it wholly on the metal
+                         // with half a millimetre to spare.
+grip_engage      = 16;   // How far back over the slab the C reaches
+grip_screw_back  = 7;    // Screw setback from the slab's front edge.  This is the
+                         // lever the screw's own force acts through on the jaw, so
+                         // keeping it short is worth more than thickening the jaw:
+                         // it is the ONE dimension that decides how hard the grip
+                         // can be tightened before its jaw yields.  It cannot go
+                         // to zero — the screw must land on metal the slab is
+                         // actually supporting, not out over its edge — and it
+                         // must leave a wall between the thread and the throat.
+grip_wall        = 8;    // Thickness of the C's two legs and its web
+grip_slack       = 2;    // Headroom left above the thickest metal
+grip_fit         = 0.3;  // Clearance under the slab, so a loose grip slides
+grip_gap         = 1;    // Clear air between the two grips at their closest
+grip_boss_len    = 6;    // Screw boss standing off the grip
+vs_len           = 22;   // Grip screw thread length — longer than the beam screws,
                          // because it has to cross the whole throat
-vs_boss_len     = 6;     // Vice screw boss standing above the upper arm
 
 /* [Assembly preview] */
-demo_carrier_z  = 90;    // Holder height, used only for the upright view
+demo_carrier_z  = 59;    // Holder height, used only for the upright view
 demo_holder_z   = 30;    // Holder position along the beam, laid-flat view only
 demo_foot_z     = 125;   // Foot position along the beam, laid-flat view only
-demo_clamp_z    = 20;    // Plate clamp height, upright view only
-demo_metal_t    = 3;     // Thickness of the demo workpiece drawn in the assembly
-show_workpiece  = true;  // Draw a representative plate in the assembled view
+demo_clamp_z    = 40;    // Edge clamp height, upright view only.  Set with
+                         // demo_carrier_z so the preview shows the case brought
+                         // down close over the metal, which is the working pose.
+// No workpiece is drawn — you bring your own metal.  These two only pose the
+// preview: they say what size of metal the grips and their screws are set up
+// for, so the assembled view shows the clamp as it would actually be found
+// rather than wide open.
+demo_metal_w    = 60;    // Width of metal the grips are set to, between the edges
+demo_metal_t    = 3;     // Thickness the grip screws are wound down to
 
 /* [Magnets] */
 // Informational only — used for the capacity report echoed at render time.
@@ -299,16 +392,37 @@ lead_in       = thread_depth;   // thread lead-in chamfer, can't exceed the thre
 edge_ch       = 0.6;            // cosmetic chamfer on outer edges
 
 // --- Base plate ----------------------------------------------
-cover_size    = plate_size - 2 * cover_inset;       // rebate across the flats
-cav_size      = plate_size - 2 * cav_inset;         // fill cavity across the flats
+// Long enough to seat both hubs with their gussets and still leave the
+// cavity's border, so the plate's length is a consequence of the beam pitch
+// rather than a number picked by hand.
+plate_y       = beam_pitch + hub_size + hub_flare + 2 * cav_inset;
+
+hub_y         = [-beam_pitch / 2, beam_pitch / 2];  // the two socket centres
+
+cover_x       = plate_x - 2 * cover_inset;          // rebate across the flats
+cover_y       = plate_y - 2 * cover_inset;
+cav_x         = plate_x - 2 * cav_inset;            // fill cavity across the flats
+cav_y         = plate_y - 2 * cav_inset;
 cav_z0        = cover_t;                            // cavity floor (above the cover)
 cav_z1        = cav_z0 + cav_depth;                 // cavity ceiling
 plate_ceiling = plate_h - cav_z1;                   // solid roof over the cavity
 
-// The post's load runs down a solid column through the plate, so
-// the cavity is a ring around a central pad wider than the hub's
+// Each beam's load runs down a solid column through the plate, so
+// the cavity is a ring around TWO pads, each wider than its hub's
 // gusset — and deep enough to take the socket.
 pad_size      = hub_size + hub_flare + 2;
+
+// Bracing ribs.  The cavity's ceiling is printed as a bridge, so no pocket
+// may be wider than the printer will span.  A square plate needed only one
+// rib per axis; a long one needs the stretch BETWEEN the two pads broken up,
+// so the cross ribs are spaced to divide it into equal gaps under the limit.
+rib_gap_max   = 19;                                 // widest pocket we will bridge
+rib_span      = beam_pitch - pad_size;              // clear run between the pads
+rib_gaps_raw  = max(2, ceil(rib_span / rib_gap_max));
+rib_gaps      = (rib_gaps_raw % 2 == 0) ? rib_gaps_raw : rib_gaps_raw + 1;
+rib_n         = (rib_gaps - 2) / 2;                 // ribs run i = -rib_n .. +rib_n
+rib_step      = rib_span / rib_gaps;
+rib_gap       = rib_step - cav_rib;                 // the pocket that actually bridges
 
 // --- Post and socket -----------------------------------------
 hub_flare_h   = hub_flare / 2;                      // 45 deg gusset
@@ -333,20 +447,30 @@ num_max       = floor((scale_span - num_lift - num_size) / 10) * 10;  // last nu
 // --- Carrier -------------------------------------------------
 sleeve_in     = post_size + 2 * slide_clear;
 sleeve_out    = sleeve_in + 2 * sleeve_wall;
-// Case centre, set so the tube sinks case_merge into the sleeve face.
-case_cy       = sleeve_out / 2 + body_r - case_merge;
+// Case centre.  It used to sit hard against the sleeve, welded to it by the
+// overlap of the two tubes.  Now it stands case_gap clear and a cantilever
+// arm carries it.
+case_cy       = sleeve_out / 2 + body_r + case_gap;
 
-// The thinnest section in the whole holder: the material left
-// between the post bore and the case bore.
-web_min       = (case_cy - bore_r) - sleeve_in / 2;
+// The arm's free span is that gap, by construction.  There is no merge depth
+// to tune at either end: the arm's plan profile runs from the sleeve's centre
+// to the case's centre, so it is grown into both bodies through their full
+// wall thickness rather than lapped onto their surfaces.  The slide bore and
+// the magnet bore are then cut back out, which is what leaves the walls
+// exactly as thick as they were before the arm arrived.
+arm_span      = case_gap;
 
-// Half-width of the lens where the case tube overlaps the sleeve's
-// outer face — i.e. how wide the weld between them actually is.
-weld_half_w   = sqrt(body_r * body_r - pow(case_cy - sleeve_out / 2, 2));
+// The arm is one constant section swept along the sleeve axis, so its
+// stiffness is set by its width across the beam and its height along it.
+// Bending is dominated by the height, which is the whole sleeve, and that
+// makes the arm enormously stiffer than it needs to be: a loaded case puts
+// well under a tenth of a megapascal into the root.  The section is chosen
+// for printability and for the fillet it can carry, not for strength.
+arm_h         = carrier_h;
+arm_z_mod     = arm_w * arm_h * arm_h / 6;
 
-// Above the sleeve the case runs alongside the post with nothing
-// between them.  Deeper case_merge is a stronger weld but a tighter
-// gap here, so this is the other half of that trade.
+// The case now runs well clear of the beam, so this is simply how much
+// daylight there is between them.
 post_gap      = case_cy - body_r - post_size / 2;
 sleeve_ch     = 1.2;                                // chamfer on both ends of the sleeve bore
 boss_z        = carrier_h / 2;
@@ -383,32 +507,83 @@ com_h         = sleeve_out / 2 + case_cy;
 tip_angle     = atan(foot_half_w / com_h);
 tip_bare      = atan(sleeve_out / 2 / com_h);   // without the foot
 
-// The foot's clamp boss stands off the SAME side of the beam as the
-// case does, so the two cannot be slid on top of one another.  This
-// is how far apart along the beam they have to stay: measured base
-// to base, with the foot on the case's side of the holder.
-foot_min_gap  = case_h - (foot_boss_z - boss_d / 2);
+// The foot's clamp boss stands off the SAME side of the beam as the case
+// does, so the two cannot be slid on top of one another.  What it fouls is
+// no longer the case — that now stands well beyond the boss's reach — but
+// the ARM, which crosses the boss's path over the sleeve's full height.
+//
+// Two things have to clear when the foot sits ABOVE the holder: the boss
+// against the arm, and — the one that actually binds, now that the arm is no
+// taller than the sleeve — the two sleeves against each other.  Whichever
+// needs more room wins.
+foot_arm_gap  = arm_h - (foot_boss_z - boss_d / 2);
+foot_min_gap  = max(carrier_h, foot_arm_gap);
 
-// --- Plate clamp ---------------------------------------------
-throat        = grip_max + jaw_t;                   // clear height of the mouth
-shelf_top     = jaw_arm_t;                          // the datum the metal rests on
-arm_lo_z      = shelf_top + throat;                 // underside of the upper arm
-arm_hi_z      = arm_lo_z + jaw_arm_t;               // top of the upper arm
-vs_boss_top   = arm_hi_z + vs_boss_len;
-vs_y          = (mouth_back + mouth_front) / 2;     // vice screw sits mid-mouth
-vs_reach      = vs_len + ts_tip_len;
-vs_hole_len   = jaw_arm_t + vs_boss_len;            // depth of the threaded hole
+// --- Edge clamp ----------------------------------------------
+// The slab, in clamp-local coordinates: the sleeve is at the origin, the slab
+// reaches in -Y toward the other beam, and its top face is the table the metal
+// lies on.
+slab_y0       = -slab_reach;                        // free front edge
+slab_y1       = -(sleeve_out / 2 - slab_merge);     // buried in the sleeve
+slab_depth    = slab_y1 - slab_y0;                  // how far it overhangs
 
-clamp_y0      = sleeve_out / 2 - body_merge;        // body sinks into the sleeve
-jaw_half_w    = jaw_w / 2 - jaw_inset;
-jaw_y0        = mouth_back + jaw_inset;
-jaw_y1        = mouth_front - jaw_inset;
+// The grip, modelled with its screw axis at x = 0.  The body is deliberately
+// NOT centred on that axis: it runs only grip_screw_in inboard, just enough to
+// carry the thread, and the rest hangs outboard where there is nothing to
+// collide with.  Centring it would push the two grips apart and cost about
+// 6 mm off the narrowest workpiece the clamp can take.
+grip_out      = grip_w - grip_screw_in;             // screw to the outboard end
 
-// How far the screw can push the jaw below the upper arm, and therefore the
-// thinnest and thickest metal the clamp will actually close on.
-vs_stroke     = vs_reach - vs_hole_len;
-clamp_min_t   = throat - jaw_t - vs_stroke;         // 0 or less means it closes fully
-clamp_arm_reach = vs_y - sleeve_out / 2;            // cantilever the screw load acts on
+// Vertical stack.  z = 0 is the slab's underside, so the grip's lower leg sits
+// just below that and its upper leg clears the slab plus the thickest metal.
+grip_z0       = -(grip_fit + grip_wall);            // bottom of the grip
+grip_z1       = -grip_fit;                          // top of the lower leg
+grip_z2       = slab_t + grip_max + grip_slack;     // underside of the upper leg
+grip_z3       = grip_z2 + grip_wall;                // top of the upper leg
+grip_boss_top = grip_z3 + grip_boss_len;
+
+// Along the bench: the web hangs down the slab's front face and the two legs
+// reach back over and under it.
+grip_y0       = slab_y0 - grip_fit - grip_wall;     // outer face of the web
+grip_y1       = slab_y0 - grip_fit;                 // inner face of the web
+grip_y2       = slab_y0 + grip_engage;              // how far back the legs reach
+grip_screw_y  = slab_y0 + grip_screw_back;          // screw over supported metal
+
+// The jaw is a cantilever off the web, and the screw's own force is what bends
+// it — a far bigger load than anything the magnets do.  A 20 mm knurled head
+// tightened at a comfortable 0.5 N.m develops roughly 270 N down the thread,
+// and an enthusiastic 1.0 N.m about 540 N, so this is the number that has to
+// clear those rather than the 40 to 70 N a magnet stack pulls with.
+grip_leg_arm  = grip_screw_y - grip_y1;
+grip_leg_S    = grip_w * grip_wall * grip_wall / 6;
+print_yield   = 30;                                 // printed ABS in-plane, MPa
+grip_screw_lim = print_yield * grip_leg_S / grip_leg_arm;
+
+// The one screw.  It has to cross the slack above the metal and then the metal
+// itself, so its stroke is measured against a bare slab — the worst case.
+grip_hole_d   = grip_wall + grip_boss_len;          // depth of thread in the grip
+grip_reach    = vs_len + ts_tip_len;
+grip_stroke   = grip_reach - grip_hole_d;
+grip_close    = grip_z2 - slab_t;                   // tip travel to touch bare slab
+
+// Workpiece range.  A grip's screw lands grip_bite inside the metal's edge, so
+// where the grips end up IS the width.  At one end the two grips meet; at the
+// other they run out of slab.
+mouth_min     = grip_screw_in + grip_gap / 2;
+mouth_max     = slab_half - grip_out;
+work_w_min    = 2 * (mouth_min + grip_bite);
+work_w_max    = 2 * (mouth_max + grip_bite);
+
+// How much of the metal a grip covers on each side, and what that leaves bare
+// between them.  This applies only under the grips themselves — everything
+// forward of the slab's front edge is bare across the full width.
+grip_cover    = grip_screw_in + grip_bite;
+function work_bare(w) = w - 2 * grip_cover;
+
+// The metal lies ON the slab, so its underside sits this far ABOVE the clamp's
+// base plane.  Matched against the case's floor on the other beam, this is
+// what says whether the two can be brought together.
+work_rest     = slab_t;
 
 // --- Thumbscrew ----------------------------------------------
 ts_maj_r      = ts_major_d / 2;
@@ -425,7 +600,7 @@ ts_total_len  = ts_head_t + ts_len + ts_tip_len;
 
 // How far the shaft reaches past the head, and therefore how far
 // the head still stands off the boss when the dog point has
-// clamped onto the tower.  The screw must be long enough to cross
+// clamped onto the beam.  The screw must be long enough to cross
 // the boss, the sleeve wall and the slide clearance — but short
 // enough that the head never bottoms out first.
 ts_reach      = ts_len + ts_tip_len;
@@ -444,14 +619,16 @@ assert(slit_z1 > slit_z0,
        "Slit margins leave no room for a slit — reduce slit_margin_top/bot or increase inner_depth.");
 assert(cap_wall - flute_depth >= 0.8,
        "Grip flutes cut the cap wall too thin — reduce flute_depth or increase cap_wall.");
-assert(case_merge < sleeve_wall - 0.3,
-       "case_merge is deeper than the sleeve wall — the case would break through into the tower bore.");
-assert(case_merge >= 1,
-       "case_merge is too shallow to weld the case to the sleeve — raise it.");
-assert(web_min >= 2.5,
-       "Too little material between the tower bore and the case bore — raise sleeve_wall or lower case_merge.");
+assert(case_gap > 2,
+       "Arm has no span to bridge — raise case_gap, or weld the case to the sleeve as it used to be.");
+assert(arm_w >= 4,
+       "Arm is too thin to print with sound perimeters — raise arm_w.");
+assert(arm_fillet * 2 < arm_span,
+       "Arm fillets would meet in the middle — reduce arm_fillet or raise case_gap.");
+assert(arm_w + 2 * arm_fillet < sleeve_out,
+       "Arm plus its fillets is wider than the sleeve it springs from — reduce arm_w or arm_fillet.");
 assert(post_gap >= 0.8,
-       "Case would run too close to the post above the sleeve — lower case_merge or raise sleeve_wall.");
+       "Case would run too close to the beam above the sleeve — raise case_gap.");
 assert(socket_sink <= plate_h - cover_t - 2,
        "Socket reaches too deep into the plate — reduce socket_sink or thicken plate_h.");
 assert(hub_boss_len >= 4,
@@ -472,32 +649,42 @@ assert(!scale_on || len([for (a = scale_face_angles) if ((a + 360) % 360 == bed_
        "A marked face is the one that prints against the bed — change post_print_roll or scale_face_angles.");
 assert(post_print_roll % 90 == 0,
        "post_print_roll must be a multiple of 90, or the post lands on a corner.");
-assert(vs_stroke >= grip_max,
-       "Vice screw cannot reach a closed jaw — lengthen vs_len or shorten the boss/arm.");
-assert(clamp_min_t <= 0,
-       "Vice screw runs out of stroke before the jaws close — lengthen vs_len.");
-assert(mouth_front > mouth_back + 15,
-       "Mouth is too shallow to grip anything usefully — move mouth_front out.");
-assert(mouth_back >= sleeve_out / 2 + 4,
-       "Mouth back wall is inside the sleeve — move mouth_back out.");
-assert(stem_x + stem_d / 2 < jaw_w / 2 - 2,
-       "Guide stems fall outside the moving jaw — reduce stem_x.");
-assert(stem_x - stem_d / 2 > boss_d / 2 + 2,
-       "Guide stems collide with the vice screw boss — increase stem_x.");
-assert(stem_len > arm_hi_z - (shelf_top + jaw_t) + 4,
-       "Guide stems are too short to stay engaged in the arm — lengthen stem_len.");
-assert(clamp_h >= vs_boss_top,
-       "Vice boss stands above the sleeve — raise clamp_h or shorten vs_boss_len.");
-assert(mouth_back - body_merge > boss_d / 2,
-       "Clamp body fouls the beam thumbscrew boss — move mouth_back out.");
+assert(grip_z2 > slab_t + grip_max,
+       "Grip throat cannot swallow the slab and the thickest metal — raise grip_slack.");
+assert(grip_stroke >= grip_close,
+       "Grip screw runs out of stroke before it reaches a bare slab — lengthen vs_len.");
+assert(grip_bite >= ts_tip_d / 2,
+       "Screw tip would hang over the metal's edge — raise grip_bite.");
+assert(grip_screw_in >= ts_f_maj_r + 1,
+       "Too little meat inboard of the grip's thread — raise grip_screw_in.");
+assert(grip_engage < slab_depth - 2,
+       "Grip reaches back further than the slab overhangs, so it would foul the sleeve — reduce grip_engage or raise slab_reach.");
+assert(mouth_max > mouth_min,
+       "Slab is too narrow for the grips to move at all — raise slab_half.");
+assert(work_w_max >= 90 && work_w_min <= 25,
+       "Grips no longer cover the 25 to 90 mm workpieces they are meant to — check slab_half, grip_screw_in and grip_bite.");
+assert(work_bare(work_w_min) > 0,
+       "At its narrowest the grips would meet over the metal, leaving nothing bare — reduce grip_screw_in or grip_bite.");
+assert(slab_y1 < 0,
+       "Slab sinks past the beam axis — reduce slab_merge.");
+assert(clamp_screw_side == 180 || clamp_screw_side == 0,
+       "The clamp's beam screw must sit fore or aft; on a side face its head fouls the slab.");
+assert(grip_boss_top <= clamp_h,
+       "Grip screw boss stands above the clamp's sleeve — shorten grip_boss_len.");
+assert(grip_screw_back >= 3,
+       "Screw sits too near the slab's edge — the metal under it would be unsupported.");
+assert(grip_screw_back + boss_d / 2 < grip_engage + grip_wall,
+       "Screw boss overhangs the back of the grip — reduce grip_screw_back or deepen grip_engage.");
+assert(grip_screw_lim > 600,
+       "Grip jaw would yield under ordinary hand-tightening — thicken grip_wall or reduce grip_screw_back.");
 assert(foot_rise > foot_pad_t + 2,
        "Foot buttress must rise clear of its own pad — raise foot_rise.");
 assert(foot_rise < sleeve_out,
        "Foot buttress climbs past the top of the sleeve — lower foot_rise.");
 assert(foot_span > sleeve_out + 20,
        "Foot is no wider than the sleeve it replaces, so it stabilises nothing.");
-assert(tip_angle > 25,
-       "Foot is too narrow for how high the case sits — widen foot_span.");
+assert(tip_angle > 32,
+       "Foot is too narrow for how high the case now sits on its arm — widen foot_span.");
 assert(demo_foot_z - demo_holder_z >= foot_min_gap
        || demo_holder_z - demo_foot_z >= foot_len,
        "Preview places the foot's boss inside the case — separate demo_foot_z and demo_holder_z.");
@@ -505,14 +692,18 @@ assert(abs(screw_side) == 90 || screw_side == 0,
        "screw_side should be 0, 90 or -90 so the boss lands square on a face.");
 assert(plate_ceiling >= 2.5,
        "Fill cavity leaves too thin a roof — reduce cav_depth or increase plate_h.");
-assert(cav_size > pad_size + 2 * cav_rib,
-       "Fill cavity is too small to clear the hub's central pad — increase plate_size.");
+assert(cav_x > pad_size + 2 * cav_rib,
+       "Fill cavity is too narrow to clear the hubs' load pads — increase plate_x.");
+assert(beam_pitch > hub_size + hub_flare + 4,
+       "The two hub gussets would run into each other — increase beam_pitch.");
+assert(plate_x >= hub_size + hub_flare + 2 * cav_inset,
+       "Base plate is too narrow for a hub gusset and its border — increase plate_x.");
 assert(carrier_z_max > carrier_z_min,
        "Post is too short for the holder — increase post_len or reduce carrier_h.");
 assert(ts_tip_d / 2 < ts_min_r,
        "Thumbscrew dog point is wider than the thread core — reduce ts_tip_d.");
 assert(ts_clamp_gap >= 1,
-       "Thumbscrew is too short to reach the tower — increase ts_len or reduce boss_len.");
+       "Thumbscrew is too short to reach the beam — increase ts_len or reduce boss_len.");
 assert(ts_clamp_gap <= ts_len,
        "Thumbscrew is longer than it can ever be wound in — reduce ts_len.");
 
@@ -743,14 +934,13 @@ module case_cap() {
 }
 
 // ============================================================
-// STAND — base plate and tower
+// BENCH — base plate and sockets
 // ============================================================
 
-// Solid square tower, rising from the plate's top face.  Solid
-// rather than shelled: the slicer's infill is a far cheaper way
-// to hollow a 150 mm column than modelled walls, which would
-// slice as 100 % perimeter.  Solid also gives the thumbscrew a
-// proper bearing face instead of a thin wall to dent.
+// The beams are solid rather than shelled: the slicer's infill is a
+// far cheaper way to hollow a 150 mm column than modelled walls,
+// which would slice as 100 % perimeter.  Solid also gives the
+// thumbscrew a proper bearing face instead of a thin wall to dent.
 // ============================================================
 // POST RULER
 // ============================================================
@@ -845,10 +1035,10 @@ module post() {
     }
 }
 
-// The socket hub: a square tower stub on the plate with the post's
+// The socket hub: a square stub on the plate with the beam's
 // socket bored down through it and on into the plate's solid pad.
-module socket_hub() {
-    translate([0, 0, plate_h]) {
+module socket_hub(hy = 0) {
+    translate([0, hy, plate_h]) {
         // 45 deg gusset where the hub meets the plate.
         linear_extrude(hub_flare_h, scale = hub_size / (hub_size + hub_flare))
             square(hub_size + hub_flare, center = true);
@@ -866,98 +1056,114 @@ module socket_hub() {
 
 // Everything the socket has to remove: the bore itself plus a lead-in
 // flare at its mouth so the post starts in squarely.
-module socket_negative() {
-    translate([0, 0, socket_z0])
+module socket_negative(hy = 0) {
+    translate([0, hy, socket_z0])
         linear_extrude(socket_depth + eps)
             square(socket_size, center = true);
 
-    translate([0, 0, hub_top - hub_ch])
+    translate([0, hy, hub_top - hub_ch])
         linear_extrude(hub_ch + eps,
                        scale = socket_size / (socket_size + 2 * hub_ch))
             square(socket_size + 2 * hub_ch, center = true);
 }
 
-// The fill cavity: a ring of pockets around a solid central pad,
-// braced by four ribs.  The pad carries the tower's load straight
-// down to the cover, and the ribs keep every bridged span short.
+// The fill cavity: a ring of pockets around TWO solid load pads, braced by
+// ribs.  Each pad carries its beam's load straight down to the cover, and the
+// ribs keep every bridged span short.
+//
+// With the plate now long rather than square, one rib down the centreline is
+// not enough: the pockets between the pads would bridge most of the plate's
+// length.  So the cross ribs are spread along Y at a spacing that keeps every
+// span short, rather than being a single pair on the axes.
 module fill_cavity() {
     // Starts just below the rebate floor rather than exactly on it —
     // coincident faces there survive CGAL but make fragile geometry.
     translate([0, 0, cav_z0 - eps])
         linear_extrude(cav_depth + eps)
             difference() {
-                rounded_square(cav_size, cav_size, plate_corner_r / 2);
+                rounded_square(cav_x, cav_y, plate_corner_r / 2);
 
-                // Central load-bearing pad under the tower.
-                square(pad_size, center = true);
+                // Load-bearing pad under each beam.
+                for (hy = hub_y) translate([0, hy]) square(pad_size, center = true);
 
-                // Bracing ribs on both axes.
-                square([cav_size + 2, cav_rib], center = true);
-                square([cav_rib, cav_size + 2], center = true);
+                // Spine down the long axis.
+                square([cav_rib, cav_y + 2], center = true);
+
+                // Cross ribs, spread so no pocket bridges more than rib_span.
+                for (i = [-rib_n : rib_n])
+                    translate([0, i * rib_step])
+                        square([cav_x + 2, cav_rib], center = true);
             }
 }
 
 module base_plate_solid() {
     union() {
         difference() {
-            chamfered_box(plate_size, plate_size, plate_h, plate_ch, plate_corner_r);
+            chamfered_box(plate_x, plate_y, plate_h, plate_ch, plate_corner_r);
 
             // Cover rebate, open downward.
             translate([0, 0, -eps])
                 linear_extrude(cover_t + eps)
-                    rounded_square(cover_size, cover_size, plate_corner_r / 2);
+                    rounded_square(cover_x, cover_y, plate_corner_r / 2);
 
             // Snap groove that retains the cover's rib.
             translate([0, 0, cover_t / 2 - 0.45])
                 linear_extrude(0.9)
                     difference() {
-                        rounded_square(cover_size + 2 * snap_d,
-                                       cover_size + 2 * snap_d, plate_corner_r / 2);
-                        rounded_square(cover_size - 2, cover_size - 2, 1);
+                        rounded_square(cover_x + 2 * snap_d,
+                                       cover_y + 2 * snap_d, plate_corner_r / 2);
+                        rounded_square(cover_x - 2, cover_y - 2, 1);
                     }
 
             // Weight cavity.
             fill_cavity();
         }
 
-        socket_hub();
-
-        // Clamp station that locks the post into the socket.
-        clamp_boss(boss_reach, hub_boss_len, hub_boss_z);
+        // One socket hub per beam, each with the clamp station that locks
+        // its beam down.  Both screws face the same way, side by side.
+        for (hy = hub_y) {
+            socket_hub(hy);
+            translate([0, hy, 0])
+                clamp_boss(boss_reach, hub_boss_len, hub_boss_z);
+        }
     }
 }
 
 module base_plate() {
     difference() {
         base_plate_solid();
-        socket_negative();
-        clamp_hole(boss_reach, hub_boss_z, hub_hole_depth);
+        for (hy = hub_y) {
+            socket_negative(hy);
+            translate([0, hy, 0])
+                clamp_hole(boss_reach, hub_boss_z, hub_hole_depth);
+        }
     }
 }
 
 // Snap-in cover that closes the fill cavity.
 module base_cover() {
-    cs = cover_size - 2 * cover_fit;
+    cx = cover_x - 2 * cover_fit;
+    cy = cover_y - 2 * cover_fit;
     union() {
         // Plate, with a chamfered leading edge to start it in.
         hull() {
             linear_extrude(0.8)
-                rounded_square(cs - 1.2, cs - 1.2, plate_corner_r / 2);
+                rounded_square(cx - 1.2, cy - 1.2, plate_corner_r / 2);
             translate([0, 0, 0.8])
                 linear_extrude(cover_t - 0.8)
-                    rounded_square(cs, cs, plate_corner_r / 2);
+                    rounded_square(cx, cy, plate_corner_r / 2);
         }
 
         // Retaining rib, sized to click into the plate's groove.
         translate([0, 0, cover_t / 2 - 0.35])
             linear_extrude(0.7)
-                rounded_square(cs + 2 * (snap_d - 0.1),
-                               cs + 2 * (snap_d - 0.1), plate_corner_r / 2);
+                rounded_square(cx + 2 * (snap_d - 0.1),
+                               cy + 2 * (snap_d - 0.1), plate_corner_r / 2);
     }
 }
 
 // ============================================================
-// STAND — holder (case + carrier, one part)
+// BENCH — holder (case + arm + carrier, one part)
 // ============================================================
 
 // A thumbscrew clamp station.  `reach` is the distance from the
@@ -1022,12 +1228,45 @@ module ts_thread_negative(depth) {
     }
 }
 
-// Case and sleeve as ONE body.  The two are parallel vertical
-// tubes whose walls overlap by case_merge, so the union welds them
-// over the full height of the sleeve — no clip, no shelf, no
-// sprung arm, and nothing that can rattle or fatigue.  The case is
-// turned 180 deg so that slit_angle = 0 faces the slit outward,
-// away from the tower.
+// Case, arm and sleeve as ONE body.  The case and the sleeve are parallel
+// vertical tubes standing case_gap apart, bridged by a cantilever arm that
+// runs from the sleeve's centre right through to the case's — grown into
+// both bodies rather than lapped onto their surfaces, so the weld is the
+// full wall thickness at each end.  No clip, no shelf, no sprung arm,
+// nothing that can rattle or fatigue.  The case is turned 180 deg so that
+// slit_angle = 0 faces the slit outward, away from the beam, which also puts
+// the arm on the case's blind side where it cannot foul the slit.
+//
+// The arm is a single plan profile swept along the sleeve's axis, which is
+// what keeps the whole holder printable in one upright orientation: swept
+// that way it has no overhanging face anywhere. It is also the stiff way
+// round.  Hung on the arm, the loaded case bends it about a section a full
+// carrier_h deep, so the root stress is negligible; the fillets are there to
+// keep the re-entrant corners from being stress risers, not to add strength.
+
+// Plan profile: sleeve, arm and case tube grown together, then the
+// re-entrant corners filled.  Growing before shrinking is what fillets a
+// concave corner; the reverse, as the foot uses, rounds convex ones.
+module holder_plan_2d() {
+    offset(r = -arm_fillet) offset(r = arm_fillet)
+        union() {
+            rounded_square(sleeve_out, sleeve_out, 2);
+            translate([-arm_w / 2, 0]) square([arm_w, case_cy]);
+            translate([0, case_cy]) circle(r = body_r);
+        }
+}
+
+// The arm as a solid.  The bore is cut back out of it above the case floor,
+// so the fillet may run right into the tube without swallowing the magazine.
+module case_arm() {
+    difference() {
+        linear_extrude(arm_h) holder_plan_2d();
+
+        translate([0, case_cy, tube_floor_t])
+            cylinder(h = arm_h + 1, r = bore_r);
+    }
+}
+
 module holder() {
     difference() {
         union() {
@@ -1039,6 +1278,9 @@ module holder() {
             // that with the post laid flat and the case upward the
             // screw points sideways rather than into the bench.
             clamp_boss(boss_reach, boss_len, boss_z);
+
+            // The arm out to the case.
+            case_arm();
 
             // The case itself.
             translate([0, case_cy, 0])
@@ -1054,7 +1296,7 @@ module holder() {
 }
 
 // ============================================================
-// STAND — stabiliser foot
+// BENCH — stabiliser foot
 // ============================================================
 //
 // Laid flat, the rig rests on a strip only as wide as a sleeve, with
@@ -1111,48 +1353,42 @@ module foot() {
 }
 
 // ============================================================
-// STAND — plate clamp
+// BENCH — edge clamp
 // ============================================================
 //
-// A parallel-jaw vice on a sliding sleeve, for holding flat metal
-// horizontally when the beam is upright.
+// Holds flat metal by its two SIDE EDGES only.  That constraint is the whole
+// design: a magnet has to reach the metal, so nothing may lie across the face
+// being worked on.  The clamp this replaced was a parallel-jaw vice whose
+// upper arm and moving jaw both covered the work — fine for holding metal,
+// useless for doing anything magnetic to it.
 //
-// The workpiece range drives the whole layout.  A 120 mm plate is
-// wider than any sensible clamp, so the mouth has to be open at both
-// sides as well as the front — which rules out guiding the moving jaw
-// with posts beside it, and equally rules out side walls.  Putting the
-// guides BEHIND the mouth would work, but it pushes the grip zone
-// outboard and lengthens the cantilever the screw load acts through.
+// THE SLAB is a flat plate reaching off a sliding sleeve.  Nothing more.  Its
+// top face is the table the metal lies on, and its free front edge is the rail
+// the grips ride on.
 //
-// So the jaw is guided by two stems that pass UP through the upper
-// arm.  The mouth is then completely unobstructed, the grip zone sits
-// as close to the beam as it can, and the cantilever stays short.
+// THE GRIPS are plain C-clamp heads that hook over that edge.  Each one's
+// SINGLE screw does three jobs at once: it presses the metal down onto the
+// slab, it squeezes the slab between the metal and the grip's lower leg, and
+// in doing so it locks the grip's own position along the edge.  That is why
+// there is no separate hold-down and no second pinch screw — three screws
+// hold the whole station where an earlier version of this clamp used seven.
 //
-// The jaw is a separate part rather than a pad on the screw tip:
-//   * the faces stay parallel, so a plate is clamped flat instead of
-//     being tipped by a rotating pad — this rig has a millimetre scale
-//     on it, so the workpiece staying square actually matters;
-//   * nothing spins against the metal while tightening;
-//   * one central screw still grips a 20 mm disc, because the guided
-//     jaw cannot tilt away from it.
+// The metal is worked on where it OVERHANGS the slab's front edge.  There it
+// is bare on both faces across its full width, and the grips are far enough
+// behind that they never crowd the case coming down.  Under the grips
+// themselves the slab supports the metal, which is what lets one screw a side
+// be enough.
 //
-// The fixed lower shelf carries the grip ribs and the moving jaw is
-// left flat.  That is a print-orientation decision: the shelf's top
-// face points up on the bed and takes fine detail, whereas the jaw's
-// gripping face is printed against the bed and comes out flat and
-// smooth.  Uniform rib heights still define a plane, so the shelf is
-// no less of a datum for being ribbed.
+// WHY THE GRIP IS ITS OWN PART: a C printed upright has a horizontal roof over
+// its throat, which is an unsupported overhang.  Printed on its back with the
+// throat opening upward, both jaw faces become vertical walls and the web
+// becomes a floor, so there is nothing to support.  The same rotation puts the
+// screw's reaction, which tries to spread the C, along the layers rather than
+// across the bonds.
 
-// Ribs across the shelf, running perpendicular to the pull-out
-// direction so they resist the metal sliding out of the mouth.
-module shelf_ribs() {
-    n = floor((mouth_front - mouth_back) / grip_rib_p);
-    for (i = [0 : n])
-        translate([0, mouth_back + i * grip_rib_p, shelf_top])
-            rotate([0, 90, 0])
-                cylinder(h = jaw_w, r = grip_rib_h, center = true, $fn = 4);
-}
-
+// The slab: a sleeve on the beam and a flat plate reaching forward from it.
+// Every wall is vertical and the plate starts on the bed, so printed upright
+// there is nothing anywhere for the slicer to support.
 module plate_clamp() {
     difference() {
         union() {
@@ -1160,56 +1396,73 @@ module plate_clamp() {
             linear_extrude(clamp_h)
                 rounded_square(sleeve_out, sleeve_out, 2);
 
-            // Beam clamp boss, on the same face as the holder's.
-            clamp_boss(boss_reach, boss_len, clamp_h / 2);
+            // Beam clamp boss.  Behind the beam, clear of the slab.
+            clamp_boss(boss_reach, boss_len, clamp_h / 2, clamp_screw_side);
 
-            // The C-frame: a solid block, hollowed into a mouth below.
-            translate([-jaw_w / 2, clamp_y0, 0])
-                cube([jaw_w, mouth_front - clamp_y0, arm_hi_z]);
-
-            // Vice screw boss on top of the upper arm.
-            translate([0, vs_y, arm_hi_z])
-                cylinder(h = vs_boss_len, d = boss_d);
-
-            shelf_ribs();
+            // The slab, sunk slab_merge into the sleeve's face.
+            translate([-slab_half, slab_y0, 0])
+                cube([2 * slab_half, slab_depth, slab_t]);
         }
-
-        // The mouth — open at the front and at BOTH sides, so a plate
-        // wider than the jaws just overhangs them.
-        translate([-jaw_w / 2 - 1, mouth_back, shelf_top])
-            cube([jaw_w + 2, mouth_front - mouth_back + 1, throat]);
 
         // Bore that slides on the beam, and the beam clamp thread.
         sleeve_bore_negative(clamp_h);
-        clamp_hole(boss_reach, clamp_h / 2, ts_hole_depth);
-
-        // Threaded hole for the vice screw.
-        translate([0, vs_y, vs_boss_top])
-            rotate([180, 0, 0])
-                ts_thread_negative(vs_hole_len);
-
-        // Clearance for the jaw's guide stems.
-        for (sx = [-stem_x, stem_x])
-            translate([sx, vs_y, arm_lo_z - 1])
-                cylinder(h = jaw_arm_t + 2, d = stem_d + 2 * stem_clear);
+        clamp_hole(boss_reach, clamp_h / 2, ts_hole_depth, clamp_screw_side);
     }
 }
 
-// The moving jaw.  Prints face down: the gripping face comes off the
-// bed flat and smooth, and the stems rise where nothing overhangs.
-module clamp_jaw() {
-    union() {
-        translate([-jaw_half_w, jaw_y0, 0])
-            cube([2 * jaw_half_w, jaw_y1 - jaw_y0, jaw_t]);
+// One grip: a C hooked over the slab's front edge, screw axis at x = 0.
+// Modelled in the clamp's own z, so the throat straddles the slab exactly as
+// it finds it.
+module edge_grip() {
+    difference() {
+        // Clipped to the grip's footprint along the edge, which keeps the
+        // screw boss from bulging past the inboard end and stopping the two
+        // grips closing on a narrow workpiece.
+        intersection() {
+            translate([-grip_screw_in, grip_y0 - 1, grip_z0 - 1])
+                cube([grip_w, grip_y2 - grip_y0 + 2, grip_boss_top - grip_z0 + 2]);
 
-        for (sx = [-stem_x, stem_x])
-            translate([sx, vs_y, jaw_t - eps])
-                cylinder(h = stem_len + eps, d = stem_d);
+            union() {
+                // Lower leg, reaching back under the slab.
+                translate([-grip_screw_in, grip_y0, grip_z0])
+                    cube([grip_w, grip_y2 - grip_y0, grip_z1 - grip_z0]);
+
+                // Web, down the slab's front face.
+                translate([-grip_screw_in, grip_y0, grip_z0])
+                    cube([grip_w, grip_y1 - grip_y0, grip_z3 - grip_z0]);
+
+                // Upper leg, reaching back over the metal.
+                translate([-grip_screw_in, grip_y0, grip_z2])
+                    cube([grip_w, grip_y2 - grip_y0, grip_z3 - grip_z2]);
+
+                // Screw boss.
+                translate([0, grip_screw_y, grip_z3])
+                    cylinder(h = grip_boss_len, d = boss_d);
+            }
+        }
+
+        // The one threaded hole, breaking through into the throat.
+        translate([0, grip_screw_y, grip_boss_top])
+            rotate([180, 0, 0])
+                ts_thread_negative(grip_hole_d);
     }
+}
+
+// Where a grip's screw axis sits for a workpiece of the given width: one bite
+// inside the metal's edge, held off the centreline so the pair cannot meet and
+// off the slab's corner so they cannot run off it.
+function grip_mouth(w) = min(max(w / 2 - grip_bite, mouth_min), mouth_max);
+
+// The pair.  Mirror images, because the body is offset toward the inboard end
+// — one module, rendered twice.
+module edge_grips(w = 60) {
+    m = grip_mouth(w);
+    translate([ m, 0, 0]) edge_grip();
+    translate([-m, 0, 0]) mirror([1, 0, 0]) edge_grip();
 }
 
 // ============================================================
-// STAND — printed thumbscrew
+// BENCH — printed thumbscrew
 // ============================================================
 //
 // Prints head DOWN: the external thread then rises in the good
@@ -1244,44 +1497,51 @@ module thumbscrew(len = ts_len) {
 // ASSEMBLY
 // ============================================================
 
+// The bench, standing up and set to work.  Beam A carries the case; beam B,
+// facing it across the middle of the base, carries the clamp.  The case
+// reaches in from its own beam and comes down over the middle of whatever
+// the grips are holding.
 module stand_assembled(z = demo_carrier_z) {
-    // Clamp to what the tower can actually offer, so the preview
-    // cannot show the sleeve buried in the root gusset.
+    // Clamp to what a beam can actually offer, so the preview cannot show a
+    // sleeve buried in the root gusset.
     carrier_z = min(max(z, carrier_z_min), carrier_z_max);
+    clamp_z   = min(max(demo_clamp_z, carrier_z_min), carrier_z_max);
 
     base_plate();
 
     base_cover();
 
-    // The post, dropped into its socket.
-    translate([0, 0, socket_z0]) post();
+    // Both beams, dropped into their sockets and locked down.
+    for (hy = hub_y)
+        translate([0, hy, 0]) {
+            translate([0, 0, socket_z0]) post();
+            clamp_screw(boss_reach, hub_boss_z);
+        }
 
-    // Thumbscrew locking the post into the hub.
-    clamp_screw(boss_reach, hub_boss_z);
-
-    // Plate clamp, with its jaw closed on a representative workpiece.
-    translate([0, 0, demo_clamp_z]) {
+    // Edge clamp on beam B, with a workpiece in its grips.
+    translate([0, beam_pitch / 2, clamp_z]) {
         plate_clamp();
+        clamp_screw(boss_reach, clamp_h / 2, clamp_screw_side);
 
-        translate([0, 0, shelf_top + demo_metal_t]) clamp_jaw();
+        edge_grips(demo_metal_w);
 
-        translate([0, vs_y, vs_boss_top + ts_head_t + (2 + demo_metal_t)])
-            rotate([180, 0, 0])
-                thumbscrew(vs_len);
-
-        if (show_workpiece)
-            translate([-60, mouth_back, shelf_top])
-                cube([120, 40, demo_metal_t]);
+        // One screw per grip, drawn wound in until its tip is on the metal.
+        m = grip_mouth(demo_metal_w);
+        for (mir = [1, -1])
+            translate([mir * m, grip_screw_y,
+                       slab_t + demo_metal_t + ts_head_t + grip_reach])
+                rotate([180, 0, 0]) thumbscrew(vs_len);
     }
 
-    translate([0, 0, carrier_z]) {
+    // Holder on beam A.
+    translate([0, -beam_pitch / 2, carrier_z]) {
         holder();
 
         // Rotated with the case: turning the case 180 deg shifts its
         // helix phase by half a pitch, so the cap must follow.
         translate([0, case_cy, neck_z0]) rotate([0, 0, 180]) case_cap();
 
-        // Thumbscrew, wound in until its dog point clamps the post.
+        // Thumbscrew, wound in until its dog point clamps the beam.
         clamp_screw(boss_reach, boss_z);
     }
 }
@@ -1292,11 +1552,39 @@ module stand_assembled(z = demo_carrier_z) {
 
 magnet_count = floor(inner_depth / magnet_t);
 visible_span = slit_z1 - slit_z0 + slit_w;
-// Cavity is the square ring between cav_size and the central pad,
-// less the ribs — which exist only OUTSIDE the pad, hence the
-// (cav_size - pad_size) rib span rather than the full cav_size.
-cav_volume   = (cav_size * cav_size - pad_size * pad_size
-                - 2 * cav_rib * (cav_size - pad_size)) * cav_depth / 1000;
+
+// Cavity area: the rectangle, less two load pads, less the ribs that do not
+// already fall inside a pad.  A pad is clipped where it runs out to the
+// cavity's own edge, which is why its depth is measured rather than assumed.
+pad_y0       = beam_pitch / 2 - pad_size / 2;
+pad_y1       = min(beam_pitch / 2 + pad_size / 2, cav_y / 2);
+pad_depth    = pad_y1 - pad_y0;
+cav_area     = cav_x * cav_y
+             - 2 * pad_size * pad_depth
+             - (cav_rib * cav_y - 2 * cav_rib * pad_depth)
+             - (2 * rib_n + 1) * (cav_x * cav_rib - cav_rib * cav_rib);
+cav_volume   = cav_area * cav_depth / 1000;
+
+// Where the two beams put their working surfaces, and therefore whether they
+// can be brought together.  Read at a sleeve's lower edge on the ruler.
+case_floor_lo = carrier_z_min;
+case_floor_hi = carrier_z_max;
+work_top_lo   = carrier_z_min + work_rest;
+work_top_hi   = carrier_z_max + work_rest + grip_max;
+
+// How far the case reaches in from its beam, in base coordinates, and how
+// much daylight it leaves against the clamp's sleeve and slab.
+case_at_y     = -beam_pitch / 2 + case_cy;
+clear_sleeve  = (beam_pitch / 2 - sleeve_out / 2) - (case_at_y + body_r);
+clear_slab    = (beam_pitch / 2 - slab_reach) - (case_at_y + body_r);
+grip_front_y  = beam_pitch / 2 + grip_y0;           // nearest the case
+grip_back_y   = beam_pitch / 2 + grip_y2;
+case_ahead    = grip_front_y - (case_at_y + body_r);
+
+// The slab's free edge, and how far the metal has to reach past it before the
+// case can be brought down on bare metal.
+slab_edge_y   = beam_pitch / 2 - slab_reach;
+work_overhang = slab_edge_y - (case_at_y - body_r);
 
 echo(str("CASE   OD ", body_od, " mm, closed height ", case_h,
          " mm, bore ", bore_d, " mm, wall ", (body_od - bore_d) / 2, " mm"));
@@ -1304,13 +1592,17 @@ echo(str("CASE   thread M", thread_maj_r * 2, " x ", thread_pitch,
          " right-hand, ", male_turns, " turns engaged, neck wall ", neck_wall, " mm"));
 echo(str("CASE   holds ", magnet_count, " x ", magnet_t,
          " mm magnets; ", visible_span, " mm of the stack visible through the slit"));
-echo(str("STAND  base ", plate_size, " x ", plate_size, " x ", plate_h,
-         " mm with a ", hub_size, " mm hub ", hub_h, " mm tall"));
-echo(str("POST   ", post_size, " mm square x ", post_len,
-         " mm printed LYING DOWN; ", socket_depth, " mm sits in the socket, ",
-         post_free, " mm stands proud.  Overall height ", post_top, " mm"));
-echo(str("POST   removable: one thumbscrew in the hub.  Up to ",
-         floor(post_free / carrier_h), " holders fit on the free length"));
+echo(str("CASE   floor is ", tube_floor_t,
+         " mm — the only plastic between the bottom magnet and the workpiece"));
+echo(str("BENCH  base ", plate_x, " x ", plate_y, " x ", plate_h,
+         " mm carrying TWO ", hub_size, " mm hubs ", hub_h, " mm tall, ",
+         beam_pitch, " mm apart"));
+echo(str("BEAM   PRINT TWO: ", post_size, " mm square x ", post_len,
+         " mm, each printed LYING DOWN; ", socket_depth,
+         " mm sits in the socket, ", post_free,
+         " mm stands proud.  Overall height ", post_top, " mm"));
+echo(str("BEAM   each is removable on one thumbscrew in its hub.  Up to ",
+         floor(post_free / carrier_h), " sleeves fit on a free length"));
 
 if (scale_on)
     echo(str("RULER  ", scale_step, " mm graduations, 0 to ", scale_span,
@@ -1320,46 +1612,70 @@ if (scale_on)
              " the case floor sits that reading + ", hub_top, " mm above the bench"));
 
 if (scale_on)
-    echo(str("RULER  a holder can reach 0 to ", scale_usable,
+    echo(str("RULER  a sleeve can reach 0 to ", scale_usable,
              " on the scale; marks above that are for laying out work, not for",
              " the holder, which would overhang the end of the beam"));
-echo(str("STAND  fill cavity ", cav_volume,
+echo(str("BENCH  fill cavity ", cav_volume,
          " cm3  ~=  ", round(cav_volume * 1.6), " g of sand, ",
          round(cav_volume * 6.5), " g of lead shot"));
-echo(str("STAND  holder travel ", carrier_z_min, " to ", carrier_z_max,
-         " mm  (", carrier_z_max - carrier_z_min, " mm of adjustment)"));
-echo(str("STAND  case floor sits ", carrier_z_min, " to ",
-         carrier_z_max, " mm above the bench; case top reaches ",
-         carrier_z_max + case_h, " mm"));
-echo(str("HOLDER case and sleeve are ONE part, ", holder_h,
-         " mm tall; welded over a ", 2 * weld_half_w,
-         " mm wide lens, ", carrier_h, " mm of height"));
-echo(str("HOLDER thinnest section (post bore to case bore): ", web_min,
-         " mm; case clears the post by ", post_gap, " mm above the sleeve"));
+echo(str("BENCH  cavity braced by a spine and ", 2 * rib_n + 1,
+         " cross ribs, so the widest bridged pocket is ", rib_gap, " mm"));
+echo(str("BENCH  sleeve travel ", carrier_z_min, " to ", carrier_z_max,
+         " mm  (", carrier_z_max - carrier_z_min, " mm of adjustment on each beam)"));
+echo(str("HOLDER case, arm and sleeve are ONE part, ", holder_h,
+         " mm tall.  The case stands ", case_cy,
+         " mm off the beam axis — ", case_gap, " mm of clear air spanned by an ",
+         arm_w, " x ", arm_h, " mm arm, grown into both bodies rather than",
+         " lapped onto them"));
+echo(str("LAYOUT the case lands ", case_at_y,
+         " mm from the base's centre, clearing the clamp's sleeve by ",
+         clear_sleeve, " mm and its slab by ", clear_slab, " mm"));
+echo(str("LAYOUT the grips sit from ", grip_back_y, " to ", grip_front_y,
+         " mm, entirely behind the case, which clears the nearest of them by ",
+         case_ahead, " mm.  So the grips never crowd it, whatever width they",
+         " are set to"));
+echo(str("LAYOUT the metal must overhang the slab's front edge by at least ",
+         work_overhang, " mm to reach under the case.  Everything forward of",
+         " that edge is bare on both faces, full width"));
+echo(str("CLAMP  slab ", 2 * slab_half, " mm wide reaching ", slab_reach,
+         " mm from the beam.  The metal lies on it and overhangs the front",
+         " edge; two C grips hook that edge and take ", work_w_min, " to ",
+         work_w_max, " mm of workpiece, 0 to ", grip_max, " mm thick"));
+echo(str("CLAMP  ONE screw per grip.  It presses the metal down, squeezes the",
+         " slab between the metal and the grip's lower leg, and locks the",
+         " grip's own position — so the whole station tightens at TWO places",
+         " plus the beam"));
+echo(str("CLAMP  the jaw yields at about ", round(grip_screw_lim),
+         " N of screw force, acting through a ", grip_leg_arm,
+         " mm lever.  Hand-tight on a ", ts_head_d,
+         " mm head is roughly 270 N, so it is the SCREW, not the magnets, that",
+         " sets how strong this part has to be"));
+echo(str("CLAMP  a grip covers ", grip_cover,
+         " mm of each edge, so under the grips a ", demo_metal_w,
+         " mm workpiece keeps ", work_bare(demo_metal_w),
+         " mm bare.  Forward of the slab's edge it is bare full width, both",
+         " faces — that overhang is where the work gets done"));
+echo(str("CLAMP  the metal rests ", work_rest,
+         " mm above the clamp's base, so its top face sweeps ", work_top_lo,
+         " to ", work_top_hi, " mm while the case floor sweeps ", case_floor_lo,
+         " to ", case_floor_hi, " mm — overlapping over ",
+         min(work_top_hi, case_floor_hi) - max(work_top_lo, case_floor_lo),
+         " mm, so the magnets can always be brought down onto the metal"));
 echo(str("FOOT   ", foot_span, " x ", foot_len,
          " mm pad, flush with the holder's sleeve so both sit on the bench"));
 echo(str("FOOT   laid flat, tips at about ", tip_angle, " deg with the foot vs ",
          tip_bare, " deg on the bare sleeve alone"));
-echo(str("CLAMP  jaws ", jaw_w, " mm wide gripping ", mouth_front - mouth_back,
-         " mm deep, opening 0 to ", grip_max,
-         " mm.  A 120 mm plate overhangs the jaws by ", (120 - jaw_w) / 2,
-         " mm each side; a 20 mm disc sits well inside them"));
-echo(str("CLAMP  metal rests ", shelf_top,
-         " mm above the clamp's base, so at scale reading R its underside is at ",
-         hub_top + shelf_top, " + R mm above the bench"));
-echo(str("CLAMP  screw load acts through a ", clamp_arm_reach,
-         " mm cantilever; jaw guided on two ", stem_d,
-         " mm stems so the faces stay parallel"));
-echo(str("SCREW  M", ts_major_d, " x ", ts_pitch, " printed thumbscrew, ",
-         ts_head_d, " mm knurled head.  PRINT FOUR: three at ", ts_len,
-         " mm of thread (holder, foot, hub) and one at ", vs_len,
-         " mm for the vice"));
-echo(str("SCREW  holder and hub screws sit on face ", screw_side,
-         " deg; the foot's on face ", foot_screw_side,
-         " deg.  None point into the bench when the beam is laid flat"));
 echo(str("FOOT   keep it at least ", foot_min_gap,
          " mm along the beam from the holder's base — its boss shares the",
-         " case's side of the beam"));
+         " arm's side of the beam"));
+echo(str("SCREW  M", ts_major_d, " x ", ts_pitch, " printed thumbscrew, ",
+         ts_head_d, " mm knurled head.  PRINT SEVEN: five at ", ts_len,
+         " mm of thread (two hubs, holder, foot, clamp beam) and two at ",
+         vs_len, " mm for the grips"));
+echo(str("SCREW  hub, holder and foot screws sit on faces ", screw_side, " and ",
+         foot_screw_side, " deg; the clamp's beam screw on face ",
+         clamp_screw_side, " deg, behind the beam and clear of the slab.  The",
+         " two grip screws point straight down onto the work"));
 
 if (magnet_d > bore_d - 0.4)
     echo(str("WARNING: magnet_d ", magnet_d, " mm is a tight/interference fit in a ",
@@ -1371,8 +1687,16 @@ if (magnet_d < slit_w + 2)
              " mm slit — magnets could escape.  Narrow slit_w."));
 
 if (post_len > 250)
-    echo(str("NOTE: the post is ", post_len,
-             " mm long — check it fits your bed lying down."));
+    echo(str("NOTE: each of the two beams is ", post_len,
+             " mm long — check that two of them fit your bed lying down."));
+
+if (work_top_hi < case_floor_lo || work_top_lo > case_floor_hi)
+    echo("WARNING: the case floor and the clamped metal cannot be brought to the same height.");
+
+if (demo_metal_w < work_w_min || demo_metal_w > work_w_max)
+    echo(str("WARNING: the preview is posed for ", demo_metal_w,
+             " mm of metal, which is outside the ", work_w_min, " to ",
+             work_w_max, " mm the grips actually reach."));
 
 // ============================================================
 // RENDER
@@ -1386,10 +1710,10 @@ if (part == "holder" || part == "case" || part == "carrier" || part == "bottom")
 
     case_cap();
 
-} else if (part == "post") {
+} else if (part == "post" || part == "beam") {
 
     // Print orientation: lying on one face, rolled so the bed gets an
-    // unmarked face.
+    // unmarked face.  PRINT TWO — the bench needs a beam per station.
     translate([0, 0, post_size / 2])
         rotate([0, 90, 0])
             rotate([0, 0, post_print_roll])
@@ -1403,11 +1727,13 @@ if (part == "holder" || part == "case" || part == "carrier" || part == "bottom")
 
     plate_clamp();
 
-} else if (part == "jaw") {
+} else if (part == "grip") {
 
-    clamp_jaw();
+    // On its back, web face down, throat opening upward.  See the header:
+    // this orientation is the reason the grip is a separate part at all.
+    translate([0, 0, -grip_y0]) rotate([90, 0, 0]) edge_grip();
 
-} else if (part == "vicescrew") {
+} else if (part == "vicescrew" || part == "pinchscrew") {
 
     thumbscrew(vs_len);
 
@@ -1425,10 +1751,14 @@ if (part == "holder" || part == "case" || part == "carrier" || part == "bottom")
 
 } else if (part == "horizontal") {
 
-    // The other way this gets used: post pulled out of the base and
-    // laid on the bench, cases pointing UP and both thumbscrews
-    // pointing sideways rather than down into the bench.  The rig
-    // rests on the holder's sleeve, which stands proud of the post.
+    // The other way this gets used: ONE beam pulled out of its socket and
+    // laid on the bench, case pointing UP and both thumbscrews pointing
+    // sideways rather than down into the bench.  The rig rests on the
+    // holder's sleeve, which stands proud of the beam.
+    //
+    // The case now sits much higher above the bench than it used to, on its
+    // arm, so the foot has been widened to suit.  Only one beam is shown:
+    // laid flat the second one is simply a spare.
     translate([0, 0, sleeve_out / 2])
         rotate([0, 0, 90]) rotate([90, 0, 0]) {
             post();
@@ -1447,23 +1777,53 @@ if (part == "holder" || part == "case" || part == "carrier" || part == "bottom")
             }
         }
 
-} else if (part == "exploded") {
+} else if (part == "exploded" || part == "plate") {
 
-    // Every part in its print orientation, laid out on the bed.
-    // Fits comfortably inside 270 x 270 mm.  Two thumbscrews.
-    translate([-62, -72, 0])  base_plate();
-    translate([ 58, -72, 0])  base_cover();
-    translate([-58,  -8, 0])  foot();
-    translate([-58,  33, 0])  plate_clamp();
-    translate([ 25,  53, 0])  clamp_jaw();
-    translate([ 10,   0, 0])  holder();
-    translate([ 48,   0, cap_h]) rotate([180, 0, 0]) case_cap();
-    translate([ 85,   0, 0])  thumbscrew();
-    translate([ 85,  28, 0])  thumbscrew();
-    translate([ 85,  56, 0])  thumbscrew();
-    translate([ 85,  84, 0])  thumbscrew(vs_len);
-    translate([-93, 118, post_size / 2])
-        rotate([0, 90, 0]) rotate([0, 0, post_print_roll]) post();
+    // THE WHOLE MACHINE, on one 270 x 270 bed.  Seventeen objects: two beams,
+    // the base and its cover, the holder, the cap, the clamp slab, both grips,
+    // the foot and seven thumbscrews.  One command builds the lot.
+    //
+    // The two beams are what make this tight: at 186 mm they are longer than
+    // any free stretch left once the base is down.  So they stand ON END up
+    // the left edge, out of the way, and everything else stacks down the bed
+    // beside them.  The base and its cover lie long-axis-along-X for the same
+    // reason.  Laid any other way the set does not fit and has to be split
+    // across two plates, which is a good way to print half a machine.
+
+    translate([-122.00,  -93.00, 0])
+        translate([0, 0, post_size / 2]) rotate([0, 0, 90]) rotate([0, 90, 0]) rotate([0, 0, post_print_roll]) post();
+    translate([ -99.00,  -93.00, 0])
+        translate([0, 0, post_size / 2]) rotate([0, 0, 90]) rotate([0, 90, 0]) rotate([0, 0, post_print_roll]) post();
+    translate([  -2.00,   87.00, 0])
+        rotate([0, 0, 90]) base_plate();
+    translate([  -8.80,    1.80, 0])
+        rotate([0, 0, 90]) base_cover();
+    translate([ -24.00,  -59.80, 0])
+        plate_clamp();
+    translate([ -31.00, -119.15, 0])
+        foot();
+    translate([  97.35,   60.35, 0])
+        holder();
+    translate([  79.00,    4.00, 0])
+        translate([0, 0, -grip_y0]) rotate([90, 0, 0]) edge_grip();
+    translate([ 102.00,    4.00, 0])
+        translate([0, 0, -grip_y0]) rotate([90, 0, 0]) mirror([1, 0, 0]) edge_grip();
+    translate([ 121.45,  -21.50, 0])
+        translate([0, 0, cap_h]) rotate([180, 0, 0]) case_cap();
+    translate([  49.90,  -84.09, 0])
+        thumbscrew();
+    translate([  72.90,  -84.09, 0])
+        thumbscrew();
+    translate([  95.90,  -84.09, 0])
+        thumbscrew();
+    translate([ 118.90,  -84.09, 0])
+        thumbscrew();
+    translate([  49.90,  -61.09, 0])
+        thumbscrew();
+    translate([  72.90,  -61.09, 0])
+        thumbscrew(vs_len);
+    translate([  95.90,  -61.09, 0])
+        thumbscrew(vs_len);
 
 } else {  // "assembly" / "both"
 

@@ -1,6 +1,6 @@
 // ============================================================
 // Drawer Divider — meshed inner cross-walls, no border, no floor
-// Split into two halves that locate on each other with a tongue
+// Split into two halves that simply butt against each other
 //
 // Drops into an existing drawer of a given inner width × depth and
 // splits it into width_cells × depth_cells equal compartments
@@ -20,33 +20,58 @@
 // square holes, leaving mesh_strut-wide struts between them.  The
 // pattern is fitted per bay — the run of panel between two crossings
 // — so every bay gets whole holes and a full-width strut at each end,
-// and the top and bottom edges of every panel stay solid.
+// and the top and bottom edges of every panel stay solid.  The bottom
+// band is widened to clear the base braces, so a brace always roots
+// into solid wall rather than into the side of a hole.
 //
 // Struts are still the full wall thickness, so the panel keeps its
 // stiffness against the load that matters (sideways push) and only
 // loses material where nothing was working.
 //
+// BRACES
+// A grid of bare walls has nothing to stop it racking: push the top of
+// one wall sideways and the whole frame leans like a parallelogram,
+// because the only thing resisting it is the 2.5 mm root of each wall.
+// So every inside corner where two walls cross is braced by a flat
+// strip lying on the drawer floor, and each one runs the full diagonal
+// of its compartment: from the far end of one bounding wall to the far
+// end of the other — the outermost point either wall can offer, and so
+// the longest member the compartment can hold.
+//
+// The one column the split plane runs down is braced differently.  A
+// diagonal there would be cut in half and leave each piece with a bent
+// V, so instead those compartments run their braces into the T-foot.
+// Each member starts at the outer end of a Y-wall — where that wall
+// meets the drawer wall, the far corner of the compartment — and runs
+// diagonally inward to land on the T bumper.  Assembled the pair reads
+// as one shallow V with its apex on the bumper; on each printed half
+// it is a single straight member from the outer edge in.
+//
+// That triangulates the frame in plan, and it costs nothing to print:
+// it is horizontal material in the first few millimetres of the job,
+// and it widens the bed contact from a few thin wall edges to a set of
+// long solid strips.
+//
 // SPLIT
 // The full-width wall is too long for the bed, so the divider is cut
 // on a vertical plane at split_x (default: half the width) into a
-// LEFT and a RIGHT piece.  Every full-width wall crossing that plane
-// carries a tongue and groove:
+// LEFT and a RIGHT piece.  There is no interlock of any kind — the
+// divider is a snug fit between the drawer sides, and that is what
+// holds the two halves in line.
 //
-//   - the wall is locally thickened into a small boss, tapered at
-//     both ends so there is no abrupt stress riser,
-//   - the LEFT piece grows a plain flat tongue out of that boss,
-//   - the RIGHT piece has the matching groove milled into its boss.
+// All each half needs is somewhere to bump.  So every full-width wall
+// ends at the split plane in a small flat T: a low crossbar sitting
+// on the drawer floor, much wider than the 2.5 mm wall, so the halves
+// meet face to face rather than edge to edge and cannot slip past one
+// another.  The crossbar tapers back into the plain wall as it rises,
+// so there is no hard ledge, and a pair of floor gussets flares it
+// back along the wall — the same brace as every other corner, so the
+// cut end of a half is no floppier than the rest of it.  The split is
+// a mesh keep-out, so the wall ends in solid material.
 //
-// The joint is for ALIGNMENT ONLY — it keeps the two halves flush
-// and in line while they are dropped into the drawer.  It is a slip
-// fit with a chamfered lead-in, not a snap: nothing has to flex, and
-// the halves push apart again by hand.  Once in place the drawer
-// sides hold everything captive.  The boss and its tapers are a mesh
-// keep-out, so the joint always sits in solid material.
-//
-// Everything is a vertical prism: printed upright (walls along Z)
-// there is not a single overhang — the groove is a plain vertical
-// slot and the tongue a plain vertical plate.  The one thing the
+// Everything is a vertical prism bar the T-feet, which taper inwards
+// as they rise: printed upright (walls along Z) there is not a single
+// overhang anywhere in the part.  The one thing the
 // printer has to bridge is the flat top edge of each square hole,
 // which is what mesh_hole spans; keep it inside comfortable bridging
 // range (~15 mm) and no supports are needed.  Bed contact is only
@@ -94,22 +119,23 @@ mesh_strut    = 4;     // Width of the struts left between the holes
 mesh_hole     = 30;    // Target square hole size — also the bridge span
 mesh_hole_min = 6;     // Bays that can only fit a smaller hole stay solid
 
-/* [Alignment joint] */
+/* [Base braces] */
+brace      = true;  // false leaves the base of the grid unbraced
+brace_w    = 4;     // Width of the diagonal strip
+brace_h    = 8;     // How high the strip stands off the drawer floor
+brace_ov   = 0.5;   // How far the ends bury into the wall they land on
+foot_flare = 18;    // Reach of the gussets that flare the split foot
+
+/* [Split] */
 // -1 puts the split plane exactly half way across the width.  Give an
 // explicit X to move it — it must miss the width-dividing walls.
-split_x    = -1;    // X of the split plane (mm), or -1 for width/2
+split_x = -1;   // X of the split plane (mm), or -1 for width/2
 
-joint_len  = 10;    // How far the tongue reaches into the other half
-joint_t    = 2.0;   // Tongue thickness (Y)
-joint_clr  = 0.25;  // Gap between tongue and groove, per face — slip fit
-
-lead_len   = 1.5;   // Length of the tapered lead-in at the tongue tip
-lead_cham  = 0.5;   // How much narrower the very tip is, per side
-
-boss_t     = 6.5;   // Local wall thickness (Y) around the joint
-boss_back  = 6;     // Boss reach behind the split plane (left piece)
-boss_front = 4;     // Boss material behind the end of the groove
-boss_taper = 6;     // Length the boss tapers back down to wall_t
+// The butt foot — the flat T at the end of every full-width wall that
+// reaches the split plane.  Purely a bumping face; nothing engages.
+foot_w  = 24;   // Crossbar width across the wall (Y)
+foot_t  = 5;    // Crossbar thickness along the wall (X), per half
+foot_h  = 12;   // Crossbar height — tapers back to wall_t at the top
 
 /* [Bed] */
 bed_x = 270;  // Printable bed size in X (mm)
@@ -145,10 +171,39 @@ fr = min(fillet_r, cell_w / 2, cell_d / 2);
 // Where the model is cut in two.
 sx = split_x < 0 ? width / 2 : split_x;
 
-// Piece extents in X.  The left piece carries the protruding tongue,
-// so it reaches joint_len past the split plane; the right piece is
-// hollowed there, so it starts exactly at the plane.
-piece_l_w = sx + joint_len;
+// How far either side of the split plane the mesh is kept out, so the
+// wall ends in solid material and no hole ever pierces a foot.
+split_kb = foot_t + mesh_strut;
+
+// Perpendicular distance from a braced corner to the diagonal spanning
+// legs a and b — the widest strip that corner could possibly take.
+function standoff(a, b) = a * b / sqrt(a * a + b * b);
+
+// A corner gusset spans a whole compartment, so its legs are simply the
+// compartment itself: every arm of a crossing runs one full cell before
+// it meets the next crossing or the drawer wall.
+
+// Which compartment column (0-based) the split plane runs down, and
+// which side of a crossing an arm reaches into.
+split_col = len([for (i = [1 : 1 : max(nx, 1)]) if (nx > 0 && wall_cx(i) < sx) 1]);
+function col_of(i, sgx) = sgx > 0 ? i : i - 1;
+
+// Reach from the split plane out to the Y-wall bounding its column —
+// the leg of a brace that runs into the T-foot.
+foot_lx_neg = sx - (split_col >= 1 ? wall_cx(split_col) + wall_t / 2 : 0);
+foot_lx_pos = (split_col + 1 <= nx ? wall_cx(split_col + 1) - wall_t / 2 : width) - sx;
+function foot_lx(sgx) = sgx > 0 ? foot_lx_pos : foot_lx_neg;
+
+brace_max_w = standoff(cell_w, cell_d);
+
+// Arms of a crossing that reach into the split column: their gussets
+// give way to the braces that run into the T-foot instead.
+split_arms = len([for (i = [1 : 1 : max(nx, 1)], sgx = [-1, 1])
+                     if (nx > 0 && col_of(i, sgx) == split_col) 1]);
+
+// Piece extents in X.  Nothing crosses the split plane, so each piece
+// is exactly its own side of it.
+piece_l_w = sx;
 piece_r_w = width - sx;
 
 eps = 0.01;
@@ -159,26 +214,26 @@ assert(cell_w > 0,
 assert(cell_d > 0,
        "depth_cells too high (or wall_t too thick) for the given depth");
 
-// The joint lives on the full-width walls.  With none of them the two
+// The feet ride on the full-width walls.  With none of them the two
 // halves would come apart into unconnected combs.
 assert(ny >= 1,
-       "depth_cells must be at least 2 — the alignment joint rides on a full-width wall");
+       "depth_cells must be at least 2 — the halves butt on a full-width wall");
+
+assert(foot_w >= wall_t && foot_t > 0 && foot_h > 0 && foot_h <= height,
+       "the butt foot must be wider than the wall and fit inside the height");
+
+assert(!brace || (brace_w > 0 && brace_w < brace_max_w
+                  && brace_h > 0 && brace_h < height),
+       "brace_w must be positive and narrower than the compartment diagonal's stand-off, and brace_h must fit inside the wall height");
 
 // The split plane has to fall in open compartment space, clear of the
-// width-dividing walls and with room either side for the boss.
-assert(sx - boss_back - boss_taper > 0 && sx + joint_len + boss_front + boss_taper < width,
-       "split_x leaves no room for the joint boss inside the drawer");
+// width-dividing walls and with room for the mesh keep-out either side.
+assert(sx - split_kb > 0 && sx + split_kb < width,
+       "split_x sits too close to a drawer wall for the butt foot");
 for (i = [1 : 1 : max(nx, 1)])
     if (nx > 0)
-        assert(abs(sx - wall_cx(i)) > wall_t / 2 + boss_taper,
+        assert(abs(sx - wall_cx(i)) > wall_t / 2 + fr + split_kb,
                "split_x lands on (or too near) a width-dividing wall — move it");
-
-// The groove walls are what is left of the boss either side of the
-// tongue; keep at least ~1.5 mm, i.e. four extrusions.
-assert((boss_t - joint_t - 2 * joint_clr) / 2 >= 1.5,
-       "boss_t too thin for joint_t — the groove would have paper-thin walls");
-assert(lead_len < joint_len && lead_cham < joint_t / 2,
-       "lead-in chamfer does not fit the tongue");
 
 assert(mesh_strut > 0 && mesh_hole > 0,
        "mesh_strut and mesh_hole must be positive");
@@ -195,34 +250,42 @@ assert(mesh_strut > 0 && mesh_hole > 0,
 function bay_n(L) = max(1, round((L - mesh_strut) / (mesh_hole + mesh_strut)));
 function bay_hole(L) = (L - (bay_n(L) + 1) * mesh_strut) / bay_n(L);
 
+// Height of the solid band at the foot of every panel.  Normally one
+// strut; with braces it rises to clear them, so a brace never roots
+// into the side of a hole.
+mesh_z0 = brace ? max(mesh_strut, brace_h) : mesh_strut;
+
 // The vertical division is common to every panel — same height, so
-// the holes line up right across the divider.
-nz = bay_n(height);
-hz = bay_hole(height);
+// the holes line up right across the divider.  The pattern is laid
+// out over the run left above that band, counting the band itself as
+// the first strut.
+mesh_hz = height - mesh_z0 + mesh_strut;
+nz = bay_n(mesh_hz);
+hz = bay_hole(mesh_hz);
 
 // A hole is cut a little proud of both faces so the difference leaves
-// no coplanar skin.  The bosses are a keep-out, so overshooting the
-// wall thickness can never reach them.
+// no coplanar skin.  The split is a keep-out, so overshooting the
+// wall thickness can never reach a foot.
 cut_t = wall_t + 2;
 
 // Keep-outs.  A crossing is blocked for the wall thickness plus the
-// fillet that leans on it; the joint is blocked for the whole boss
-// including its tapers.
-kb        = wall_t / 2 + fr;
-boss_lo   = sx - boss_back - boss_taper;
-boss_hi   = sx + joint_len + boss_front + boss_taper;
+// fillet that leans on it; the split is blocked for split_kb either
+// side of the plane.
+kb       = wall_t / 2 + fr;
+split_lo = sx - split_kb;
+split_hi = sx + split_kb;
 
 // Blocked runs along X, in ascending order.  wall_cx() is increasing
-// and the asserts above put the boss in open space between two of
+// and the asserts above put the split in open space between two of
 // them, so simply splitting the crossings around sx keeps it sorted.
 blocked_x = concat(
     [for (i = [1 : 1 : max(nx, 1)]) if (nx > 0 && wall_cx(i) < sx)
         [wall_cx(i) - kb, wall_cx(i) + kb]],
-    [[boss_lo, boss_hi]],
+    [[split_lo, split_hi]],
     [for (i = [1 : 1 : max(nx, 1)]) if (nx > 0 && wall_cx(i) > sx)
         [wall_cx(i) - kb, wall_cx(i) + kb]]);
 
-// Blocked runs along Y — the crossings only; the joint is not on
+// Blocked runs along Y — the crossings only; the feet are not on
 // these panels.
 blocked_y = [for (j = [1 : 1 : max(ny, 1)]) if (ny > 0)
                 [wall_cy(j) - kb, wall_cy(j) + kb]];
@@ -246,13 +309,21 @@ echo(str("Split at X = ", sx,
          " — left piece ", piece_l_w, " × ", depth,
          " mm, right piece ", piece_r_w, " × ", depth, " mm"));
 
-echo(str("Alignment tongue: ", joint_t, " × ", joint_len, " × ", height,
-         " mm, ", joint_clr, " mm clearance per face, groove walls ",
-         (boss_t - joint_t - 2 * joint_clr) / 2, " mm"));
+echo(brace
+     ? str("Base braces: ", brace_w, " mm strips ", brace_h, " mm tall — ",
+           (nx * 2 - split_arms) * ny * 2, " on the full ", cell_w, " × ",
+           cell_d, " mm compartment diagonal, ", ny * 4,
+           " running from an outer wall end in to the T-foot")
+     : "Base braces: off");
+
+echo(str("Butt foot at the split: ", foot_w, " mm across × ", foot_t,
+         " mm per half × ", foot_h, " mm tall, on ", ny,
+         " full-width wall(s)"));
 
 if (mesh) {
     echo(str("Mesh: ", mesh_strut, " mm struts, ", nz,
-             " rows of holes ", hz, " mm tall"));
+             " rows of holes ", hz, " mm tall, first row starting ",
+             mesh_z0, " mm up"));
     echo(str("Hole widths per bay — along X: ",
              [for (b = bays_x) let (L = b[1] - b[0])
                  bay_hole(L) >= mesh_hole_min ? bay_hole(L) : "solid"]));
@@ -312,7 +383,7 @@ module bay_holes(u0, u1) {
         for (a = [0 : 1 : n - 1], b = [0 : 1 : nz - 1])
             translate([u0 + mesh_strut + a * (hu + mesh_strut),
                        -cut_t / 2,
-                       mesh_strut + b * (hz + mesh_strut)])
+                       mesh_z0 + b * (hz + mesh_strut)])
                 cube([hu, cut_t, hz]);
 }
 
@@ -358,52 +429,132 @@ module junction_fillets() {
                                     fillet_2d(fr);
 }
 
+// One flat diagonal brace, in a local frame whose origin is the inside
+// corner of the compartment, with the two bounding walls running away
+// along sgx·X and sgy·Y.  Lx and Ly are the far ends of those walls —
+// the next crossing, or the drawer wall — so the strip is the whole
+// diagonal of the compartment.
+//
+// The outer edge is the line x/Lx + y/Ly = 1.  The inner edge is that
+// same line pulled brace_w closer to the corner, which is just the
+// same line with both intercepts scaled by k; taking the intercepts
+// rather than shifting the endpoints keeps the two edges exactly
+// parallel.  Both edges are then run brace_ov past the wall faces so
+// the strip lands in solid material instead of merely touching it.
+module brace_2d(Lx, Ly, sgx, sgy) {
+    hh  = standoff(Lx, Ly);   // corner to the diagonal
+    k   = (hh - brace_w) / hh;
+    Lx2 = k * Lx;
+    Ly2 = k * Ly;
+    polygon([[ sgx * Lx  * (1 + brace_ov / Ly),  -sgy * brace_ov],
+             [-sgx * brace_ov,                    sgy * Ly  * (1 + brace_ov / Lx)],
+             [-sgx * brace_ov,                    sgy * Ly2 * (1 + brace_ov / Lx2)],
+             [ sgx * Lx2 * (1 + brace_ov / Ly2), -sgy * brace_ov]]);
+}
+
+// A brace between two given points — used where the member is not a
+// chord across a corner but a straight run from one anchor to another.
+// The strip is centred on the line and pushed ov past each end, so it
+// buries into whatever it lands on rather than merely touching it.
+module strip_2d(p, q, w, ov) {
+    u = (q - p) / norm(q - p);   // along the member
+    n = [-u[1], u[0]];           // across it
+    a = p - u * ov;
+    b = q + u * ov;
+    polygon([a + n * w / 2, b + n * w / 2, b - n * w / 2, a - n * w / 2]);
+}
+
+// Every brace in the divider.
+//
+// A corner gusset in all four inside corners of every wall crossing —
+// one at the base of each compartment that meets that crossing, laid
+// on its full diagonal.  Every arm of a crossing runs exactly one cell
+// before it meets the next crossing or the drawer wall, so both legs
+// are simply cell_w and cell_d.
+//
+// The column the split runs down is the exception.  A diagonal there
+// would be cut at its midpoint and leave each half with a V bent
+// around a point floating in open floor, so those four gussets are
+// dropped and the compartments are braced off the T-foot instead.
+//
+// Each of those members runs anchor to anchor: from the outer end of
+// the Y-wall bounding the column — the far corner of the compartment,
+// where that wall meets the drawer wall — diagonally inward to the
+// wall centre line at the split plane, which is inside the T-foot.  So
+// it is held at the outer edge of a wall at one end and by the bumper
+// at the other, which is the whole point of it.  Both anchors are on a
+// wall centre line, so each end is properly buried, not tangent.
+//
+// The ends overshoot the wall by brace_ov, which at the drawer wall
+// would poke outside the part, so the whole set is trimmed back to the
+// drawer footprint.
+module base_braces() {
+    if (brace && nx > 0 && ny > 0)
+        intersection() {
+            union() {
+                for (i = [1 : 1 : nx])
+                    for (j = [1 : 1 : ny])
+                        for (sgx = [-1, 1])
+                            for (sgy = [-1, 1])
+                                if (col_of(i, sgx) != split_col)
+                                    translate([wall_cx(i) + sgx * wall_t / 2,
+                                               wall_cy(j) + sgy * wall_t / 2,
+                                               0])
+                                        linear_extrude(height = brace_h)
+                                            brace_2d(cell_w, cell_d, sgx, sgy);
+
+                for (j = [1 : 1 : ny])
+                    for (sgx = [-1, 1])
+                        for (sgy = [-1, 1])
+                            linear_extrude(height = brace_h)
+                                strip_2d([sx + sgx * (foot_lx(sgx) + wall_t / 2),
+                                          wall_cy(j) + sgy * (wall_t / 2 + cell_d)],
+                                         [sx, wall_cy(j)],
+                                         brace_w, brace_ov);
+            }
+            translate([0, 0, -eps])
+                cube([width, depth, brace_h + 2 * eps]);
+        }
+}
+
 // ============================================================
-// GEOMETRY — alignment joint
+// GEOMETRY — butt foot at the split
 // ============================================================
 
-// Plan view of the local thickening around a joint.  X is measured
-// from the split plane, Y from the wall centre line; the boss tapers
-// back to the plain wall thickness at both ends.
-module boss_2d() {
-    x0 = -boss_back - boss_taper;
-    x1 = -boss_back;
-    x2 =  joint_len + boss_front;
-    x3 =  joint_len + boss_front + boss_taper;
-    polygon([[x0,  wall_t / 2], [x1,  boss_t / 2],
-             [x2,  boss_t / 2], [x3,  wall_t / 2],
-             [x3, -wall_t / 2], [x2, -boss_t / 2],
-             [x1, -boss_t / 2], [x0, -wall_t / 2]]);
+// The flat T at the end of a wall.  Local frame: the split plane is
+// x = 0 and the wall centre line is y = 0.  sg is +1 for the piece
+// lying in +X and -1 for the one in -X, so the crossbar always stays
+// on its own side of the plane and the two feet meet on it.
+//
+// It is a wedge rather than a block: foot_w wide where it sits on the
+// drawer floor, narrowed back to the plain wall by the time it
+// reaches foot_h.  Every layer is smaller than the one beneath it, so
+// nothing overhangs, and the wall picks the load up gradually instead
+// of over a hard step.
+module butt_foot(sg) {
+    x0 = sg > 0 ? 0 : -foot_t;
+    union() {
+        hull() {
+            translate([x0, -foot_w / 2, 0])
+                cube([foot_t, foot_w, eps]);
+            translate([x0, -wall_t / 2, foot_h - eps])
+                cube([foot_t, wall_t, eps]);
+        }
+
+        // The braces at the split.  The crossbar would otherwise stop
+        // dead against a 2.5 mm wall; these two floor gussets carry it
+        // back into the wall on the diagonal, exactly as a corner
+        // brace does, so the cut end of the half is held square.
+        if (brace)
+            for (sgy = [-1, 1])
+                linear_extrude(height = brace_h)
+                    polygon([[sg * foot_t,               sgy * wall_t / 2],
+                             [sg * foot_t,               sgy * foot_w / 2],
+                             [sg * (foot_t + foot_flare), sgy * wall_t / 2]]);
+    }
 }
 
-// Plan view of the tongue: root on the split plane at x = 0, pointing
-// into +X.  A plain parallel shank with a short taper at the tip so
-// it finds the groove without having to be lined up by eye.
-module tongue_2d() {
-    polygon([[0,                    joint_t / 2],
-             [joint_len - lead_len,  joint_t / 2],
-             [joint_len,             joint_t / 2 - lead_cham],
-             [joint_len,            -joint_t / 2 + lead_cham],
-             [joint_len - lead_len, -joint_t / 2],
-             [0,                   -joint_t / 2]]);
-}
-
-module tongue() {
-    linear_extrude(height = height)
-        tongue_2d();
-}
-
-// The cavity the tongue drops into: the tongue's own outline grown by
-// the clearance.  Cut clean through in Z — printed upright it is just
-// a vertical slot.
-module groove() {
-    translate([0, 0, -eps])
-        linear_extrude(height = height + 2 * eps)
-            offset(delta = joint_clr)
-                tongue_2d();
-}
-
-// Place a joint feature on every full-width wall at the split plane.
+// Place a feature at the split plane on every full-width wall.
 module at_joints() {
     for (j = [1 : 1 : ny])
         translate([sx, wall_cy(j), 0])
@@ -415,9 +566,12 @@ module at_joints() {
 // ============================================================
 
 // The complete divider before it is cut in two: the meshed grid, the
-// crossing fillets and the thickened bosses that carry the joints.
-// Fillets and bosses are added after the holes are cut, so they are
-// always solid.
+// crossing fillets and the base braces.  Both are added after the
+// holes are cut, so they are always solid.  The braces live here
+// rather than on the pieces, so a brace that falls across the split
+// plane is simply cut by it: each half keeps its own anchored portion,
+// and the two stubs butt on the plane and carry the diagonal straight
+// through the joint once the halves are together.
 module divider_blank() {
     union() {
         difference() {
@@ -425,7 +579,7 @@ module divider_blank() {
             if (mesh) mesh_holes();
         }
         junction_fillets();
-        at_joints() linear_extrude(height = height) boss_2d();
+        base_braces();
     }
 }
 
@@ -435,17 +589,17 @@ module left_piece() {
             divider_blank();
             translate([-big, -big, -big]) cube([big + sx, 2 * big, 2 * big]);
         }
-        at_joints() tongue();
+        at_joints() butt_foot(-1);
     }
 }
 
 module right_piece() {
-    difference() {
+    union() {
         intersection() {
             divider_blank();
             translate([sx, -big, -big]) cube([big, 2 * big, 2 * big]);
         }
-        at_joints() groove();
+        at_joints() butt_foot(+1);
     }
 }
 
