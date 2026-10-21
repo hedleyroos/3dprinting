@@ -3,9 +3,10 @@
 //  (the user's LEFT light: left as seen from behind the car)
 //
 //  Frame-first model: everything except the three reflector bowls and the
-//  flat bay's pan, which come later as separate parts that sit in the four
-//  floor cutouts. Modelled from the user's own photos (IMG_7441 rear view,
-//  unnamed.jpg front view, IMG_7527..7533 details).
+//  flat bay's back, which are the rear unit (charger73_rear_unit.scad): a
+//  skin glued onto the floor's rear face with the bowl walls standing on it
+//  round the floor cutouts. Modelled from the user's own photos (IMG_7441
+//  rear view, unnamed.jpg front view, IMG_7527..7533 details).
 //
 //  Section through a long edge (outside on the left, front face on top):
 //
@@ -71,12 +72,13 @@ wall_in_side = 14;     // est.  outer edge -> wall outer face at the floor, long
 wall_in_end = 8;       // est.  ... at the ends
 
 /* [Floor] */
-pan_inset_side = 31;   // est.  outer edge -> bay cutout, long sides
+pan_inset_side = 31;   // est.  outer edge -> outside of the bowl wall, long sides
 pan_inset_in = 18;     // est.  ... inboard end
 pan_inset_out = 20;    // est.  ... outboard end
+bay_wall = 3;          // the bowl wall's footprint: the cutout is the bay inset by this
 div_frac = [0.283, 0.535, 0.743];  // est.  divider centres along the opening
-div_w = 8;             // est.  divider width at the floor
-bay_r = 10;            // est.  bay cutout corner radius
+div_w = 8;             // est.  divider width between the bowl walls
+bay_r = 10;            // est.  bay corner radius (the cutout's is bay_r - bay_wall)
 chamfer_h = 12;        // flange underside chamfer height
 keel_h = 8;            // divider keel: how far the 45-degree faces reach
 
@@ -170,12 +172,17 @@ module lip_outside_2d() {   // lip loop, detouring inward round each stud
 
 module opening_2d() { offset(r = -lip_w) lip_outside_2d(); }
 
-// floor cutout of bay i, optionally stretched toward a neighbouring divider
+// outside of the bowl wall's foot at bay i, optionally stretched toward a
+// neighbouring divider
 module bay_2d(i, grow_in = 0, grow_out = 0) {
   x0 = bay_x0(i) - grow_in;
   x1 = bay_x1(i) + grow_out;
   rr(x0, x1, y_bot(x0) + pan_inset_side, y_bot(x1) + pan_inset_side,
      y_top - pan_inset_side, bay_r, bay_r);
+}
+
+module cut_2d(i, grow_in = 0, grow_out = 0) {   // the floor cutout: the bowl's inside
+  offset(delta = -bay_wall) bay_2d(i, grow_in, grow_out);
 }
 
 module stroke_2d(path, w) { // round-ended stroke along a polyline
@@ -223,7 +230,8 @@ module cavity() {           // hollow behind the plate, chamfered into the floor
     slab(z_floor_front + chamfer_h)
       outline_in(wall_in_end + wall_t, wall_in_end + wall_t, wall_in_side + wall_t);
     slab(z_floor_front)
-      outline_in(pan_inset_in - 1, pan_inset_out - 1, pan_inset_side - 1);
+      outline_in(pan_inset_in + bay_wall - 1, pan_inset_out + bay_wall - 1,
+                 pan_inset_side + bay_wall - 1);
   }
 }
 
@@ -232,9 +240,9 @@ module bay_cuts() {         // through the floor; keels form between them
     gi = (i > 0 && keels) ? keel_h : 0;
     go = (i < 3 && keels) ? keel_h : 0;
     hull() {
-      slab(-floor_z - 0.01) bay_2d(i);
-      slab(z_floor_front) bay_2d(i);
-      slab(z_floor_front + keel_h) bay_2d(i, gi, go);
+      slab(-floor_z - 0.01) cut_2d(i);
+      slab(z_floor_front) cut_2d(i);
+      slab(z_floor_front + keel_h) cut_2d(i, gi, go);
     }
   }
 }
@@ -353,7 +361,8 @@ echo(str("opening x ", opening_x0 + lip_w, " .. ", opening_x1 - lip_w,
 echo(str("stud x ", [for (i = [0 : 3]) round(stud_x(i))],
          "  y +", y_top - stud_inset, " / ", [for (i = [0 : 3]) round(y_bot(stud_x(i)) + stud_inset)]));
 echo(str("divider x ", [for (j = [0 : 2]) round(div_x(j))],
-         "  bays ", [for (i = [0 : 3]) round(bay_x1(i) - bay_x0(i))]));
+         "  bowl feet ", [for (i = [0 : 3]) round(bay_x1(i) - bay_x0(i))],
+         "  cutouts ", [for (i = [0 : 3]) round(bay_x1(i) - bay_x0(i) - 2 * bay_wall)]));
 echo(str("plate: back face ", mp_z + mp_t, " behind the front face, step to the floor ",
          floor_z - mp_z - mp_t, ", reach ", mp_straight + mp_r + mp_t / 2, " inboard"));
 
