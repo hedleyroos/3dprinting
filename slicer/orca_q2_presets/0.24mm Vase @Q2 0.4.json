@@ -1,0 +1,27 @@
+{
+    "default_acceleration": "5000",
+    "from": "User",
+    "fuzzy_skin": "none",
+    "fuzzy_skin_point_distance": "0.8",
+    "gap_infill_speed": "100",
+    "inherits": "0.20mm Standard @Qidi Q2",
+    "inner_wall_speed": "200",
+    "layer_height": "0.24",
+    "name": "0.24mm Vase @Q2 0.4",
+    "outer_wall_acceleration": "1500",
+    "outer_wall_speed": "120",
+    "precise_outer_wall": "1",
+    "print_extruder_id": [
+        "1"
+    ],
+    "print_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "print_settings_id": "0.24mm Vase @Q2 0.4",
+    "sparse_infill_density": "0%",
+    "sparse_infill_speed": "250",
+    "spiral_mode": "1",
+    "top_shell_layers": "0",
+    "version": "2.3.2.60",
+    "wall_loops": "1"
+}

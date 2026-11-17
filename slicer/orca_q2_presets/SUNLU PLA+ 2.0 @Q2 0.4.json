@@ -1,0 +1,30 @@
+{
+    "additional_cooling_fan_speed": [
+        "40"
+    ],
+    "compatible_printers": [
+        "Qidi Q2 0.4 nozzle"
+    ],
+    "enable_pressure_advance": [
+        "1"
+    ],
+    "filament_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "filament_settings_id": [
+        "SUNLU PLA+ 2.0 @Q2 0.4"
+    ],
+    "from": "User",
+    "hot_plate_temp": [
+        "60"
+    ],
+    "hot_plate_temp_initial_layer": [
+        "60"
+    ],
+    "inherits": "SUNLU PLA+ 2.0 @System",
+    "name": "SUNLU PLA+ 2.0 @Q2 0.4",
+    "pressure_advance": [
+        "0.04"
+    ],
+    "version": "2.4.0.0"
+}

@@ -1,0 +1,25 @@
+{
+    "default_acceleration": "5000",
+    "from": "User",
+    "gap_infill_speed": "100",
+    "infill_wall_overlap": "25%",
+    "inherits": "0.20mm Standard @Qidi Q2",
+    "inner_wall_speed": "200",
+    "ironing_type": "top",
+    "name": "0.20mm Strong @Q2 0.4",
+    "outer_wall_acceleration": "1500",
+    "outer_wall_speed": "120",
+    "print_extruder_id": [
+        "1"
+    ],
+    "print_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "print_settings_id": "0.20mm Strong @Q2 0.4",
+    "seam_position": "random",
+    "sparse_infill_density": "30%",
+    "sparse_infill_pattern": "gyroid",
+    "sparse_infill_speed": "250",
+    "version": "2.3.2.60",
+    "wall_loops": "5"
+}
