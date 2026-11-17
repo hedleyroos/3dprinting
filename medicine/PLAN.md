@@ -1,9 +1,11 @@
 # Plan: Medicine cupboard — one slide-out tray with 6 labelled compartments
 
-Revised 2026-11-17 (walls 160 mm; single walls with dovetail joints). Model: `medicine/medicine_tray.scad`.
+Revised 2026-11-17 (walls 160 mm; single walls with dovetail joints; regular wall hexes). Model: `medicine/medicine_tray.scad`.
 Build: in `medicine/`, `make` gives `bin_1.3mf` … `bin_6.3mf` (solid walls), `make hex` gives
 `bin_1_hex.3mf` … `bin_6_hex.3mf` (hex-mesh walls), `make joint_test` gives `joint_test.3mf`, and
-`make renders` gives `renders/*.png`. Repo ground rules: `../.github/copilot_instructions.md`.
+`make renders` gives `renders/*.png`. Each 3MF is sliced by OrcaSlicer as it's exported, with the presets
+on the `// ORCA:` lines in the model's header, which prints its time and filament and fails on any slicer
+warning. Repo ground rules: `../.github/copilot_instructions.md`.
 
 ## Goal
 
@@ -32,6 +34,8 @@ Material: **SUNLU PLA**, printed with the normal profile (user, 2026-11-17). Pri
 5. **Walls 160 mm high**, solid and hex alike (was 60).
 6. **Every wall is printed once.** The bins lock together into a single tray; no wall is doubled where two bins
    meet.
+7. **Wall hexes match the floor's:** regular 14 mm hexes, never stretched to fit a wall. The first stretched
+   ones (14 × 20.6 mm) looked elongated next to the floor.
 
 ## Design
 
@@ -45,10 +49,13 @@ Material: **SUNLU PLA**, printed with the normal profile (user, 2026-11-17). Pri
     and 6 own the tray's back wall. Bins 2 and 4 are left with two walls, bins 1, 3 and 6 with three, and bin 5
     with four.
   - `wall_style = "solid"` (default): plain walls.
-  - `wall_style = "hex"`: every wall gets a hex mesh, 9 rows of holes 14 wide × 20.6 tall with 2.5 mm struts.
-    It keeps 6 mm solid rails at the top and bottom, a 12 mm solid band at each wall end (it carries the
-    joints), and solid wall behind the label tab. The holes have **45° roofs**, because regular hexes' 30° roofs
-    would need support.
+  - `wall_style = "hex"`: every wall gets the floor's honeycomb: regular holes 14 mm across flats with 2.5 mm
+    struts, turned **flats top and bottom**. Their sides lean 30° from vertical and each roof is a flat
+    **8.1 mm bridge**, so they print without support (a hex standing on a corner has 30° roofs, which droop).
+    Only whole holes are cut, centred on each wall, so every wall's mesh is mirror-symmetric. The wall stays
+    solid at least 6 mm at the top and bottom, 12 mm at each wall end (it carries the joints), and behind the
+    label tab. What's left between whole holes goes to those bands: about 7 mm top and bottom, 23 mm at each
+    end of a front or back wall (9 columns) and 14 mm at each end of a side wall (11 columns).
 - **Joints.** These replace glued double walls. All 7 places where an open bin meets a neighbour's wall use the
   same two joints:
   - **Wall joint (10 of them):** each of the open bin's walls that ends against the neighbour finishes in a
@@ -63,10 +70,13 @@ Material: **SUNLU PLA**, printed with the normal profile (user, 2026-11-17). Pri
   - **Fit:** 0.25 mm clearance per side (`joint_clear`), which gives 0.56 mm of play when a joint is pulled
     apart. Sockets flare 0.4 mm at 45° at the bed, so the first layer's squish can't bind.
   - **Banded:** rails and posts run only 30 mm up from the floor and 30 mm down from the wall top
-    (`joint_band`, 0 = full height). Each upper band grows out of its wall on a 42° chamfer. Small dovetail
-    outlines on every layer cost far more time than their plastic: full-height joints made the tray slower to
-    print than the old double walls (see the print list). Between the bands, a wall end simply butts against
-    its neighbour.
+    (`joint_band`, 0 = full height). Each upper band grows out of its wall on a 42° chamfer. A post's far
+    cheek, across the socket from its wall, grows out of the post's back on a second 42° slope, finishing at
+    the band. Chamfered sideways with the rest of the post, it started in mid-air at the socket's mouth, over
+    the socket's own void, about 2 mm below the band. That is where the rail enters when a bin is lowered in.
+    Small dovetail outlines on every layer cost far more time than their plastic: full-height joints made the
+    tray slower to print than the old double walls (see the print list). Between the bands, a wall end simply
+    butts against its neighbour.
 - **Floor:** 2 mm, hex holes 14 mm across flats with 2.5 mm struts, inside a 4 mm solid band along the walls
   (10 mm along an open side).
 - **Label tab:** a 110 × 16.6 mm ledge on the inside of each bin's front wall. It's flush with the wall top and
@@ -96,14 +106,19 @@ Material: **SUNLU PLA**, printed with the normal profile (user, 2026-11-17). Pri
 - **Asserts:** door width, shelf depth and height, bed fit with a 5 mm margin for every bin including its keys
   (largest 182.8 × 192.7), printer Z, tab and gusset sizes, label length, dovetail shapes, socket walls, key
   band, keys clear of the corner posts, label tab clear of the posts, and joint bands that can't meet.
-- **No supports:** all 12 bins (both wall styles) and the joint test have 0 mm² of overhang steeper than 45° and
-  no flat underside above the bed. Each bin is a single shell; the joint test is two.
+- **No supports:** all 12 bins (both wall styles) and the joint test have 0 mm² of overhang steeper than 45°. The
+  only flat undersides above the bed are the hex-wall roofs (their area equals holes × 8.08 × 1.6 mm, and no
+  piece is wider than 8.08 mm); Orca prints them as bridged overhang walls, with support off. Solid bins and
+  the joint test have none. Each bin is a single shell; the joint test is two.
+- **Nothing floating:** OrcaSlicer's "floating regions" check passes on all 12 bins and the joint test. Before
+  the far-cheek slope it flagged every bin with posts (all but bin 5), in both wall styles. A face-angle check
+  can't catch that, because the cheek's underside was a legal 42° slope; only the void beneath it was wrong.
 - **Fit**, by intersecting bins in place:
-  - All 15 bin pairs meet with zero volume: they touch only face to face.
+  - All 15 bin pairs meet with zero volume (under 0.001 mm³, both wall styles): they touch only face to face.
   - **Locks:** a bin slid 0.35 mm along its neighbour collides, as does one pulled away 0.66 mm. One pulled away
     0.46 mm doesn't, which brackets the 0.56 mm of play.
-  - **Lowering:** bins 1, 2, 4 and 6 raised above their places by 0.3–159 mm (12 heights each, through every
-    band crossing) never touch their owners, so each bin can be lowered straight in.
+  - **Lowering:** at all 7 joints, the open bin raised above its place by 0.3–159 mm (27 heights each, through
+    every band crossing, both wall styles) never touches its owner, so each bin can be lowered straight in.
 
 ### Print list: filament and time (sliced)
 
@@ -114,13 +129,13 @@ its own plate.
 
 | Bin | Walls owned | Solid | Hex |
 |---|---|---|---|
-| 1 front-left | front, left, centre | 5 h 32 min, 208 g | 6 h 53 min, 126 g |
-| 2 front-right | front, right | 4 h 20 min, 150 g | 5 h 13 min, 96 g |
-| 3 middle-left | front, left, centre | 5 h 48 min, 210 g | 7 h 03 min, 128 g |
-| 4 middle-right | front, right | 4 h 31 min, 151 g | 5 h 19 min, 98 g |
-| 5 back-left | all four | 6 h 39 min, 261 g | 8 h 20 min, 145 g |
-| 6 back-right | front, right, back | 5 h 31 min, 204 g | 6 h 53 min, 120 g |
-| **Tray** | | **32 h 21 min, 1,185 g** (407 m) | **39 h 40 min, 714 g** (245 m) |
+| 1 front-left | front, left, centre | 5 h 32 min, 208 g | 6 h 22 min, 125 g |
+| 2 front-right | front, right | 4 h 20 min, 150 g | 4 h 52 min, 98 g |
+| 3 middle-left | front, left, centre | 5 h 48 min, 210 g | 6 h 35 min, 128 g |
+| 4 middle-right | front, right | 4 h 31 min, 151 g | 4 h 58 min, 99 g |
+| 5 back-left | all four | 6 h 39 min, 261 g | 7 h 34 min, 154 g |
+| 6 back-right | front, right, back | 5 h 31 min, 204 g | 6 h 18 min, 127 g |
+| **Tray** | | **32 h 21 min, 1,185 g** (407 m) | **36 h 41 min, 732 g** (251 m) |
 
 Plus `joint_test`: 15 min, 5 g.
 
@@ -132,9 +147,13 @@ How the joints compare, for the whole tray at 160 mm, sliced the same way:
 | Single walls, full-height joints (`joint_band = 0`) | 36 h 54 min, 1,228 g | 43 h 14 min, 756 g |
 | **Single walls, banded joints (default)** | **32 h 21 min, 1,185 g** | **39 h 40 min, 714 g** |
 
+This comparison was sliced with the first, stretched wall hexes; the regular hexes print the default tray in
+36 h 41 min, 732 g instead.
+
 - **Single walls save 345 g (23 %) and 3 h 50 min on the solid tray**, and 85 g and 8 h 11 min on the hex one.
-- **Hex walls save filament but cost time:** 471 g less than solid, 7 h 19 min longer. Each hole adds its own
-  wall loop on every layer, plus travel and retractions.
+- **Hex walls save filament but cost time:** 453 g less than solid, 4 h 20 min longer. Each hole adds its own
+  wall loop on every layer, plus travel and retractions, and each roof is bridged at 10 mm/s. The regular
+  hexes have 1,399 holes to the stretched ones' 1,291, yet print 3 h faster, for 18 g more.
 - **The 12 mm³/s cap on SUNLU PLA+ 2.0 limits the walls** to about 143 mm/s. A max-flow calibration, followed by
   raising the cap, is the main way left to print faster.
 

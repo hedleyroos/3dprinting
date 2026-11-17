@@ -32,14 +32,18 @@
 //     every layer cost far more print time than their plastic, and
 //     the bands save about 4.5 h on the solid tray over full-height
 //     joints (PLAN.md has the sliced numbers).
-//     A raised band grows out of its wall on a 42° chamfer.
+//     A raised band grows out of its wall on a 42° chamfer. A post's
+//     far cheek (across the socket from its wall) has only the post's
+//     back to grow from, so it gets a second 42° slope of its own.
 //   * Walls are SOLID by default (wall_style = "solid").
 //     wall_style = "hex" cuts a hex mesh into every wall instead,
 //     leaving solid rails top and bottom, a solid band at each wall
 //     end (where the joints are) and solid wall behind the label
-//     tab. Upright walls can't take regular hexes (their 30° roofs
-//     need support), so the wall hexes have 45° roofs and are
-//     stretched to fill the wall height.
+//     tab. The wall holes are the floor's own regular hex, turned
+//     flats up and down: their sides lean 30° from vertical and each
+//     roof is a flat 8 mm bridge, so they print without support (a
+//     hex standing on a corner has 30° roofs, which droop). Only
+//     whole holes are cut; the rails and end bands take what's left.
 //   * The floor is a hex MESH inside a solid border band, widened
 //     along an open side to hold the key sockets.
 //   * Each bin's front wall carries a LABEL TAB: a ledge flush
@@ -62,7 +66,11 @@
 //   Printer: Qidi Q2 (270 x 270 bed, 256 mm Z). One bin per plate,
 //   floor down, as modelled. The label text is the only thing above
 //   z = wall_h, so a filament change at that height prints it in
-//   a second colour.
+//   a second colour. No brim: the automatic one wraps the floor
+//   keys and fills the key sockets, and the floor holds on its own.
+// ORCA: printer="Qidi Q2 0.4 nozzle @Q2 0.4" process="0.20mm Standard @Qidi Q2"
+// ORCA: filament="SUNLU PLA+ 2.0 @Q2 0.4" brim_type=no_brim
+// ORCA: note="two-colour labels: filament change at layer 160.2 mm"
 //
 // ASSEMBLY
 //   First print part = "joint_test" (two 20 mm pieces): the rail
@@ -114,11 +122,11 @@ floor_t = 2;
 
 /* [Walls] */
 wall_style  = "solid"; // [solid, hex]
-wall_hex    = 14;      // hex: hole width across its vertical flats
-wall_strut  = 2.5;     // hex: strut between holes
-wall_rail_b = 6;       // hex: solid band at the wall bottom (includes the floor)
-wall_rail_t = 6;       // hex: solid band under the wall top (the grip edge)
-wall_post   = 12;      // hex: solid band at each end of a wall (carries the joints)
+wall_hex    = 14;      // hex: hole height, flat to flat (14 = hex_af, the floor's hex)
+wall_strut  = 2.5;     // hex: strut between holes (2.5 = hex_strut)
+wall_rail_b = 6;       // hex: least solid band at the wall bottom (includes the floor)
+wall_rail_t = 6;       // hex: least solid band under the wall top (the grip edge)
+wall_post   = 12;      // hex: least solid band at each end of a wall (carries the joints)
 
 /* [Joints] */
 joint_band    = 30;   // rails and posts run this high at the wall foot and again
@@ -198,21 +206,19 @@ post_w  = 2 * (sock_hw(rail_neck, rail_head, rail_d) + socket_m);  // along the 
 post_d  = rail_d + joint_clear + socket_m;                          // off the owner's face
 key_sw  = 2 * sock_hw(key_neck, key_head, key_d);                   // key socket, widest
 
-// Wall hexes. Cell: half-width wa, vertical sides +-wb, 45° roof and
-// floor up to apexes at +-(wa + wb). Cells tile on (2wa, 0) and
-// (wa, wa + 2wb); each hole is its cell shrunk by wall_strut/2, so
-// every strut is wall_strut wide. wb is solved so a whole number of
-// rows exactly fills the band between the rails (rows chosen to keep
-// the hex close to wb = wa/2).
+// Wall hexes: the floor's honeycomb stood up, with the hex turned
+// flats top and bottom (corners to the sides). Columns run along the
+// wall w_dx apart; each is a stack of holes w_p apart, and every
+// other column is dropped by half a hole. The middle column is
+// centred on the wall and on the band between the rails, so every
+// wall's mesh is mirror-symmetric.
 wz0     = wall_rail_b;
 wz1     = wall_h - wall_rail_t;
-wa      = (wall_hex + wall_strut) / 2;
-wZ      = (wz1 - wz0) + sqrt(2) * wall_strut;      // band + apex trims
-w_rows  = max(1, round((wZ - wa) / (2 * wa)));
-wb      = (wZ - (w_rows + 1) * wa) / (2 * w_rows);
-w_hw    = wall_hex / 2;                           // hole half-width
-w_hh    = wa + wb - wall_strut / sqrt(2);          // hole half-height
-w_pitch = wa + 2 * wb;                             // row pitch
+w_p     = wall_hex + wall_strut;                   // hole pitch up a column
+w_dx    = w_p * cos(30);                           // column pitch along the wall
+w_hw    = wall_hex / sqrt(3);                      // hole half-width, corner to corner
+w_hh    = wall_hex / 2;                            // hole half-height, flat to flat
+w_roof  = wall_hex / sqrt(3);                      // flat roof: the bridge over each hole
 
 function col(i) = i % cols;
 function row(i) = floor(i / cols);
@@ -265,6 +271,14 @@ bands = joint_band <= 0 ? [[0, wall_h]] : [[0, joint_band], [wall_h - joint_band
 // Chamfers under raised bands rise 1.1 x their overhang (42° from
 // vertical), so they stay inside the 45° rule.
 post_cham = 1.1 * (post_w - wall_t);
+// The socket splits an upper post. Its far cheek, across the socket
+// from the wall, has the socket's void below it and is joined to the
+// rest only by the post's back. Chamfered sideways with the rest, it
+// would start in mid-air at the socket's mouth, where the socket is
+// narrowest. So the sideways chamfer finishes post_cham_x lower, and
+// the far cheek grows from the back to the mouth on a 42° slope.
+sock_back   = rail_d + joint_clear;                 // owner's face to the back of a socket
+post_cham_x = 1.1 * sock_back;
 rail_cham = 1.1 * rail_d;
 joints = [for (j = [0 : n_bins - 1]) each bin_joints(j)];
 
@@ -275,16 +289,17 @@ function bin_ext(i) =
      b[3] - b[2] + (len(search(-90, own)) > 0 ? stick : 0)];
 
 // Hole centres on a wall of length L (u along the wall from its
-// start, v = z), symmetric about L/2. Only whole holes: a hole
-// clipped by a rail would get a flat roof. Holes stay wall_post
-// clear of each end, and on a front wall clear of the label tab and
-// its gusset (centred at tab_u).
+// start, v = z), symmetric about L/2. Only whole holes: one clipped
+// by a rail would get a roof up to twice as wide to bridge. Holes
+// stay wall_post clear of each end, and on a front wall clear of the
+// label tab and its gusset (centred at tab_u).
 function wall_holes(L, tab_u) =
     let (kx0 = tab_u - tab_w / 2 - wall_strut, kx1 = tab_u + tab_w / 2 + wall_strut,
-         kz0 = tab_bot - wall_strut, K = ceil(L / (2 * wa)) + 1)
-    [for (j = [0 : w_rows - 1], k = [-K : K])
-        let (v = (wz0 + wz1) / 2 + (j - (w_rows - 1) / 2) * w_pitch,
-             u = L / 2 + (j % 2) * wa + 2 * wa * k)
+         kz0 = tab_bot - wall_strut,
+         K = ceil(L / (2 * w_dx)) + 1, J = ceil((wz1 - wz0) / (2 * w_p)) + 1)
+    [for (k = [-K : K], j = [-J : J])
+        let (u = L / 2 + k * w_dx,
+             v = (wz0 + wz1) / 2 + (j + (abs(k) % 2) / 2) * w_p)
         if (u - w_hw >= wall_post - EPS && u + w_hw <= L - wall_post + EPS
             && v - w_hh >= wz0 - EPS && v + w_hh <= wz1 + EPS
             && !(tab_u >= 0 && u + w_hw > kx0 && u - w_hw < kx1 && v + w_hh > kz0))
@@ -315,8 +330,8 @@ assert(wall_style == "solid" || wall_style == "hex", "wall_style is solid or hex
 assert(wall_strut >= 1.5, "wall mesh strut too thin");
 assert(wall_post >= post_w + 1, str("wall_post must cover a joint post (", post_w, " mm) plus 1 mm"));
 assert(wall_rail_b >= floor_t + 2, "bottom wall rail must clear the floor by 2 mm");
-assert(wb > wall_strut * (1 - 1 / sqrt(2)) / 2,
-       str("wall hexes collapse to diamonds (wb ", wb, "); change wall_hex or the rails"));
+assert(wz1 - wz0 >= 2 * w_p, "rails leave no room for two rows of wall hexes");
+assert(w_roof <= 10, str("wall hex roofs bridge ", w_roof, " mm; keep wall_hex under 17"));
 assert(rail_head > rail_neck && key_head > key_neck, "a dovetail must be wider at its tip than its neck");
 assert(rail_neck >= 2.5 && key_neck >= 4, "dovetail neck too thin");
 assert(socket_m >= 1.2, "socket side thinner than three lines");
@@ -325,7 +340,7 @@ assert(rail_lead < wall_h / 4 && rail_taper < rail_neck / 2, "rail lead-in too b
 assert(joint_band == 0 || joint_band >= max(15, floor_t + rail_lead + 5), "joint_band too short to hold");
 // lowering a bin, its top post (with its chamfer) must pass above the
 // owner's foot rails: the bands must not reach each other
-assert(joint_band == 0 || wall_h - joint_band - max(post_cham, rail_cham) > joint_band + 5,
+assert(joint_band == 0 || wall_h - joint_band - max(post_cham + post_cham_x, rail_cham) > joint_band + 5,
        "joint bands overlap; use joint_band = 0 for full-height joints");
 assert(key_band >= key_d + joint_clear + 2, "key_band leaves under 2 mm of floor behind a key socket");
 assert(post_d <= key_band, "joint post sticks out past the floor's solid band");
@@ -350,7 +365,8 @@ echo(str("joints: ", len(joints), " open sides, rails and posts at z ", bands, "
 echo(str("label tab ", tab_w, " x ", ledge_d, ", gusset leaves the wall at z = ", tab_bot,
          "; text sizes ", [for (s = labels) label_size(s)]));
 if (wall_style == "hex")
-    echo(str("wall hexes ", wall_hex, " x ", 2 * w_hh, " in ", w_rows, " rows; holes per bin: ",
+    echo(str("wall hexes ", 2 * w_hw, " x ", wall_hex, " (regular), roofs bridge ", w_roof,
+             "; holes per bin: ",
              [for (i = [0 : n_bins - 1]) len([for (w = bin_walls(i)) each wall_holes(w[2], w[4])])]));
 
 // ---------------- geometry ----------------
@@ -389,9 +405,7 @@ module floor_2d(i) {
 }
 
 module wall_hole_2d() {
-    offset(delta = -wall_strut / 2)
-        polygon([[wa, wb], [0, wa + wb], [-wa, wb],
-                 [-wa, -wb], [0, -wa - wb], [wa, -wb]]);
+    circle(r = w_hw, $fn = 6);   // corners at +-u, flats top and bottom
 }
 
 module wall_holes_2d(L, tab_u) {
@@ -499,13 +513,27 @@ module rail_band(z0, z1) {
 }
 
 module post_band(z0, z1, side) {
-    translate([0, 0, z0]) post(z1 - z0);
+    zs = z0 > 0 ? z0 - post_cham_x : 0;     // the sideways chamfer ends here
+    translate([0, 0, zs]) post(z1 - zs);
     if (z0 > 0)
         hull() {
-            translate([0, side > 0 ? post_w / 2 - wall_t : -post_w / 2, z0 - post_cham - EPS])
+            translate([0, side > 0 ? post_w / 2 - wall_t : -post_w / 2, zs - post_cham - EPS])
                 cube([post_d, wall_t, EPS]);
-            translate([0, -post_w / 2, z0]) cube([post_d, post_w, EPS]);
+            translate([0, -post_w / 2, zs]) cube([post_d, post_w, EPS]);
         }
+}
+
+// Cut under an upper post's far cheek (the side away from its wall),
+// below a 42° slope rising from the socket's back at z0 - post_cham_x
+// to its mouth at z0: the cheek grows out of the post's back instead
+// of starting in mid-air. Only post lies in this region.
+module post_relief(z0, side) {
+    zb = z0 - post_cham_x - post_cham - 1;
+    translate([0, side > 0 ? 0 : post_w / 2 + EPS, 0])
+        rotate([90, 0, 0])                   // 2D x -> x, 2D y -> z, extrude -> -y
+            linear_extrude(post_w / 2 + 2 * EPS)
+                polygon([[-EPS, zb], [sock_back, zb], [sock_back, z0 - post_cham_x],
+                         [-EPS, z0 + 1.1 * EPS]]);
 }
 
 // ---- bins ----
@@ -530,7 +558,10 @@ module bin(i) {
             for (J = joints) if (J[1] == i)
                 joint_frame(J[2], J[3]) {
                     // full height: it only meets post and floor
-                    for (r = J[4]) translate([0, r[0], 0]) socket_cut(wall_h) rail_2d();
+                    for (r = J[4]) translate([0, r[0], 0]) {
+                        socket_cut(wall_h) rail_2d();
+                        for (z = bands) if (z[0] > 0) post_relief(z[0], r[1]);
+                    }
                     for (s = J[5]) translate([0, s, 0]) socket_cut(floor_t) key_2d();
                 }
         }
