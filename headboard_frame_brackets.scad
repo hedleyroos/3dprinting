@@ -43,11 +43,13 @@
 // reaches skirting_t back to bear on the wall above the board,
 // while the flat back face below bears on the skirting's face.
 // The pole socket sits at the TOP BACK, over the heel, so the pole
-// rides just pole_standoff (5 mm) off the wall — the minimum that
-// still lets the headboard clamp's sleeve pass between pole and
-// wall. The pole therefore seats ABOVE the skirting (~z 151), not
-// at the floor: the bracket's riser is its continuation downward,
-// and a 1500 mm pole tops out around z 1655. Measure the real
+// rides pole_standoff (6.72 mm) off the wall. That gap is also the
+// socket's back wall, so it matches corner_wall and takes the same
+// collar lap as the other walls; the headboard clamp's sleeve needs
+// only ~3.7 of it to pass between pole and wall. The pole therefore
+// seats ABOVE the skirting (~z 158), not at the floor: the bracket's
+// riser is its continuation downward, and a 1500 mm pole tops out
+// around z 1658. Measure the real
 // skirting before printing — skirting_h and skirting_t are
 // parameters.
 //
@@ -76,6 +78,44 @@
 // retrofit is a split two-piece collar clamped around the leg, or a
 // steel band.
 //
+// SECOND REVISION — the first printed corner bracket felt too wobbly
+// in use. Lessons, applied to the corner bracket ONLY (the end-T,
+// cross, caps and clamp are already printed and stay as they are):
+//   - a 20 mm tube must engage an ABS socket by at least min_engage
+//     (60 mm) or the socket is too short a lever for the fit clearance
+//     it must carry — asserted on both corner sockets;
+//   - the corner's socket walls go from `wall` (8 lines) to corner_wall
+//     (12 lines). The ONE exception is the foot pocket's floor, which
+//     stays `wall`: it is the tube datum the printed end-T and cross
+//     brackets already fix. The corner section is therefore cg_out
+//     square with the foot pocket sitting low in it;
+//   - a welded collar needs at least min_collar (50 mm) of lap to
+//     support the socket. The pole collar already had 60; the foot
+//     collar goes 30 -> 50, which pushes the foot socket 70 -> 90 so
+//     the collar still has a constant-section landing past the riser
+//     and gusset;
+//   - the riser stays SOLID. An earlier lightening pocket hollowed the
+//     block between the foot leg and the pole socket to save material,
+//     treating it as the web of an I-beam. It is not: the lean load
+//     also twists that block, and an open pocket gives up most of its
+//     torsional stiffness. Do not reintroduce it.
+//
+// THIRD REVISION — the collars came out only 1.58 mm thick. Flush
+// means lip + collar can be no thicker than the socket wall, and the
+// single collar_recess was capped by the thinnest wall of all: the
+// foot pocket's `wall`-thick floor, held there as the tube datum. So
+// the walls were 5.04 but every collar was 1.68 minus weld clearance.
+// Now:
+//   - corner_wall goes to 6.72 (16 lines) on EVERY corner wall,
+//     including the foot pocket floor and the pole's back wall
+//     (pole_standoff), and collar_recess to half of it (3.36). Lip and
+//     collar are each ~3.3 mm and weld into the full 6.72 wall;
+//   - raising the foot floor lifts the foot tube tube_lift (3.36) above
+//     the datum the end-T and cross were first printed to. They get a
+//     tube_lift pad of their own footprint: part = "pads" to weld under
+//     the brackets already printed; "endt", "cross" and the printplate
+//     print the bracket with its pad fused on, as one piece.
+//
 // Fits: gripping sockets are tube + 0.15 mm per side with crush
 // ribs standing 0.2 mm proud — the ribs shave on insertion, so the
 // grip survives the size scatter of extruded aluminium where a
@@ -85,10 +125,12 @@
 // through its top wall. Every socket also carries a Ø3.4 backup
 // screw hole in case friction proves insufficient.
 //
-// Every pocket floor sits exactly one wall thickness above the
-// bracket underside, so all brackets present a coplanar tube
-// datum; tubes float `wall` above the floor between brackets,
-// which 20x20 aluminium does not notice over these spans.
+// Every pocket floor sits exactly corner_wall above the floor: the
+// corner bracket's own floor is corner_wall thick, and the end-T and
+// cross (`wall` floors) stand on tube_lift pads. All brackets thus
+// present a coplanar tube datum; tubes float corner_wall above the
+// floor between brackets, which 20x20 aluminium does not notice over
+// these spans.
 // Slip-on end caps finish the four toe ends and the vertical top.
 //
 // Coordinate system (assembly view):
@@ -96,24 +138,32 @@
 //   +X = along the foot tube, +Y = along the toes, +Z = up.
 //   Floor = z 0. Every horizontal tube axis sits at tube_z.
 //
-// Print orientation (all parts support-free):
+// Print orientation (support-free except the corner's collar zones):
 //   corner — lying on a side face: layers run along both legs,
 //            the gusset and the wall heel, so the lean-load
 //            bending stress is in-plane with the layers. Pockets
 //            become horizontal voids with ~20 mm flat bridge
 //            ceilings, blind walls vertical, 45 degree mouth
 //            flares self-supporting. The heel is pure profile
-//            geometry — no overhang in this orientation. The riser
-//            lightening pocket is cut into the face that ends up
-//            UPWARD here, so it opens to the sky and needs nothing.
+//            geometry — no overhang in this orientation.
+//            EXCEPTION: the collar rebates run round all four
+//            sides, so on the bed face both collar zones (60 mm of
+//            the pole end, 50 mm of the foot end) start
+//            collar_recess above the bed, held at one end only.
+//            Enable build-plate supports for those two zones and
+//            clean the rebate faces afterwards so the collars still
+//            slide on. Deliberate: dropping the bed-side rebate
+//            would make the collars stand proud on that side face.
 //   endt / cross — floor face down: walls vertical, pocket floors
 //            (the tube datum) on the bed; only bridges are the
-//            ~20 mm pocket ceilings.
+//            ~20 mm pocket ceilings. Printed with the tube_lift pad
+//            fused under the floor.
+//   pads   — flat slabs, either face down.
 //   cap    — mouth up, closed face on the bed.
 //   collar / fcollar — standing, leading (flared) edge on the bed,
 //            funnel mouth up: layers run in the hoop plane, and the
 //            45 degree funnel chamfer widens upward, so no overhang.
-//            First layer is a ~1 mm ring — use a brim.
+//            First layer is a ~2.7 mm ring — use a brim.
 //   clamp  — standing, as used: bore vertical, plate and gussets
 //            rise from the bed. Only the thumbscrew boss is a
 //            horizontal cylinder (house precedent accepts its
@@ -129,6 +179,7 @@
 //   openscad -o headboard_frame_corner.stl -D 'part="corner"' headboard_frame_brackets.scad
 //   openscad -o headboard_frame_endt.stl   -D 'part="endt"'   headboard_frame_brackets.scad
 //   openscad -o headboard_frame_cross.stl  -D 'part="cross"'  headboard_frame_brackets.scad
+//   openscad -o headboard_frame_pads.stl   -D 'part="pads"'   headboard_frame_brackets.scad
 //   openscad -o headboard_frame_cap.stl    -D 'part="cap"'    headboard_frame_brackets.scad
 //   openscad -o headboard_frame_collar.stl -D 'part="collar"' headboard_frame_brackets.scad
 //   openscad -o headboard_frame_fcollar.stl -D 'part="fcollar"' headboard_frame_brackets.scad
@@ -139,6 +190,8 @@
 //   (printplate items: 1 corner, 2 end-T, 3 cross, 4-8 caps,
 //    9 pole collar, 10 foot collar.
 //    One plate = one side frame; print two plates for the pair.
+//    The plate's end-T and cross carry their pads already; "pads" is
+//    only for end-T and cross brackets printed before the lift.
 //    clampset items: 1 clamp, 2 thumbscrew — print one set per pole.)
 // ============================================================
 
@@ -164,7 +217,9 @@ bottom_gap   = 1.0;   // Extra pocket depth so a burred saw cut never hard-botto
 skirting_h     = 145;  // Skirting height — MEASURE before printing
 skirting_t     = 20;   // Skirting thickness = how far the heel reaches back
 skirting_clear = 5;    // Gap between the heel's underside and the skirting top
-pole_standoff  = 5;    // Pole back face to the wall. Cannot be less than the
+pole_standoff  = 6.72; // Pole back face to the wall — which is also the pole
+                       // socket's BACK WALL, so it matches corner_wall to give
+                       // the collar the same lip there. Cannot be less than the
                        // clamp sleeve's wall + slide clearance (~3.7), or the
                        // headboard clamp could not pass between pole and wall
 
@@ -172,14 +227,27 @@ pole_standoff  = 5;    // Pole back face to the wall. Cannot be less than the
 corner_vert_depth = 95;   // Pole engagement above the heel. The bracket profile
                           // is heel_z0 + wall + this + bottom_gap long and must
                           // stay under ~260 to print on its side on a 270 bed
-corner_foot_depth = 70;   // Same moment reacted over the 600 mm foot — lower stress
+corner_foot_depth = 90;   // Same moment reacted over the 600 mm foot — lower stress.
+                          // Sized so the foot collar (foot_collar_h) still has a
+                          // constant-section landing past the riser and gusset
 endt_foot_depth   = 60;
 toe_depth         = 50;   // Toes only see roll loads on a short lever
 sleeve_len        = 60;   // Cross-bracket through-sleeve length along the foot
 cross_station     = 140;  // Sleeve centre, X from the corner bracket's outer face
+min_engage        = 60;   // LESSON from the first print: below ~60 mm a 20 mm tube's
+                          // lever inside the socket is too short for the fit
+                          // clearance it must carry and the joint wobbles. Enforced
+                          // on the corner sockets (the others are already printed)
 
 /* [Body] */
-wall           = 3.36;  // 8 x 0.42 mm extrusions (4 loops) — also web & pocket floor
+wall           = 3.36;  // 8 x 0.42 mm extrusions (4 loops): end-T, cross and clamp
+                        // walls, webs and pocket floors
+corner_wall    = 6.72;  // 16 x 0.42 (8 loops): EVERY corner-bracket socket wall,
+                        // the foot pocket floor included. Twice `wall`, so the
+                        // half-depth collar rebate leaves a `wall`-thick lip under
+                        // a ~`wall`-thick collar. Raising the foot floor from
+                        // `wall` to this lifts the foot tube tube_lift, which the
+                        // end-T and cross pads make up
 gusset_leg_z   = 70;    // Corner gusset vertical leg. Steeper than the old 45x45:
                         // its foot leg (derived) is capped so it stays clear of
                         // the foot collar's rebate landing at the mouth
@@ -187,9 +255,6 @@ web_gusset_leg = 30;    // Horizontal gusset legs on the end-T / cross brackets
 corner_round   = 2;     // 2D outline rounding on convex outer corners
 screw_holes    = true;  // O3.4 self-tap backup/lock hole per socket
 screw_d        = 3.4;   // M3-ish self-tapper clearance through printed wall
-lighten        = true;  // Hollow the corner bracket's solid riser slug
-lighten_rim    = 4;     // Rim left around that pocket, in the bracket profile
-lighten_floor  = 4;     // Solid skin left on the bed-side face of the riser
 
 /* [Reinforcing Collar] */
 // The corner bracket prints on its side, so its layers are stacked
@@ -201,11 +266,16 @@ lighten_floor  = 4;     // Solid skin left on the bed-side face of the riser
 // collar_recess over the collar zone, and the collar band rides on
 // the remaining lip, its own outside flush with the un-rebated
 // surface. Solvent-weld the collar in (lap joint) BEFORE inserting
-// the tube, so the half-thickness lip is never loaded alone.
+// the tube, so the rebated lip is never loaded alone.
 collar        = true;   // Cut the rebates and print the collars
 collar_h      = 60;     // Pole collar reach down from the top face
-foot_collar_h = 30;     // Foot collar reach inboard from the foot mouth
-collar_recess = 1.68;   // Rebate depth = wall/2 (4 x 0.42 extrusions each)
+foot_collar_h = 50;     // Foot collar reach inboard from the foot mouth
+min_collar    = 50;     // Minimum collar height: the solvent weld needs this
+                        // much lap to support the socket rather than just
+                        // cap its mouth. Enforced on both collars
+collar_recess = 3.36;   // Rebate depth, 8 x 0.42 extrusions: half of
+                        // corner_wall, so lip and collar are each ~3.3 mm and
+                        // the weld restores the full 6.72 wall
 collar_weld_clear = 0.1;// Per side, collar bore over the lip. Tighter than
                         // grip_clear: travel is short and cement fills it
 collar_lead   = 0.6;    // Flare at the collar's leading edge — must stay
@@ -258,7 +328,7 @@ $fa = 1;   // Minimum angle — 1 degree gives max 360 facets per full circle
 $fs = 0.4; // Minimum facet edge length (mm) — matched to a 0.4 mm nozzle
 
 /* [Render] */
-part = "assembly";  // [corner, collar, fcollar, endt, cross, cap, clamp, screw, clampset, printplate, assembly]
+part = "assembly";  // [corner, collar, fcollar, endt, cross, pads, cap, clamp, screw, clampset, printplate, assembly]
 
 // ============================================================
 // DERIVED
@@ -270,25 +340,24 @@ g_out = g_in + 2 * wall;         // Grip socket outer square  (27.02)
 s_out = s_in + 2 * wall;         // Slide sleeve outer square (27.42)
 h_g   = g_out / 2;
 h_s   = s_out / 2;
-tube_z = wall + tube / 2;        // Axis height of every horizontal tube
+tube_z    = corner_wall + tube / 2;  // Axis height of every horizontal tube
+tube_lift = corner_wall - wall;      // Pad under the end-T and cross: their
+                                     // `wall` floors up to the corner's datum
 
 // Corner bracket: foot leg along +X, riser column up, pole socket
 // at the BACK over the wall heel so the pole rides pole_standoff
 // off the wall. The pole therefore seats ABOVE the skirting — the
 // bracket's riser is the pole's continuation down to the foot.
-foot_leg_len = wall + corner_foot_depth + bottom_gap;             // 74.36
-heel_z0      = skirting_h + skirting_clear;                       // Wall heel underside
-vert_leg_h   = heel_z0 + wall + corner_vert_depth + bottom_gap;   // 249.36
-socket_cx    = tube / 2 + grip_clear + pole_standoff - skirting_t; // Pole axis X
-
-// Riser lightening pocket: the solid block between the foot socket
-// and the pole socket. Bounded by lighten_rim on all four profile
-// edges, so it never touches either socket or the gusset.
-lighten_z0 = wall + g_in + lighten_rim;      // Clear above the foot pocket
-lighten_z1 = heel_z0 + wall - lighten_rim;   // Clear below the pole socket
-lighten_x0 = lighten_rim;
-lighten_x1 = g_out - lighten_rim;
-lighten_d  = g_out - lighten_floor;          // Pocket depth across the bracket
+// Its section is cg_out square, corner_wall on every socket wall —
+// the foot pocket floor included, so the foot pocket is centred in
+// the leg at h_cg. That floor is the tube datum; the end-T and cross
+// stand on tube_lift pads to match it.
+cg_out       = g_in + 2 * corner_wall;                              // 33.74
+h_cg         = cg_out / 2;
+foot_leg_len = corner_wall + corner_foot_depth + bottom_gap;        // 97.72
+heel_z0      = skirting_h + skirting_clear;                         // Wall heel underside
+vert_leg_h   = heel_z0 + corner_wall + corner_vert_depth + bottom_gap; // 252.72
+socket_cx    = tube / 2 + grip_clear + pole_standoff - skirting_t;  // Pole axis X
 
 // Pole-socket screw, shared by the bracket and the collar it also pins.
 // Set at 0.35 of the depth rather than the house 0.55 so it lands near
@@ -301,20 +370,24 @@ corner_vscrew_z = vert_leg_h - 0.35 * corner_vert_depth;
 corner_fscrew_x = foot_leg_len - 0.25 * corner_foot_depth;
 
 // Reinforcing collar. The bracket's top section is the riser fused to
-// the heel — 47.02 x 27.02, NOT square, and it only stays that full
+// the heel — 53.74 x 33.74, NOT square, and it only stays that full
 // width down to heel_z0.
-collar_sec_w = skirting_t + g_out;                       // 47.02 across X
-collar_cx    = (g_out - skirting_t) / 2;                 // Its centre in X
+collar_sec_w = skirting_t + cg_out;                      // 53.74 across X
+collar_cx    = (cg_out - skirting_t) / 2;                // Its centre in X
 collar_z0    = vert_leg_h - collar_h;                    // Collar leading edge
-collar_lip      = wall - collar_recess;               // Lip left on the bracket (1.68)
-collar_net_wall = collar_recess - collar_weld_clear;  // Collar hoop wall (1.58) —
+collar_lip      = min(corner_wall, pole_standoff)     // THINNEST lip (3.36): every
+                  - collar_recess;                    // wall is corner_wall except
+                                                      // the pole's back wall
+collar_net_wall = collar_recess - collar_weld_clear;  // Collar hoop wall (3.26) —
                                                       // flushness means the weld
                                                       // clearance comes out of the
                                                       // collar, not the envelope
-funnel_depth    = wall;                               // 45 deg mouth funnel depth
-foot_collar_x0  = foot_leg_len - foot_collar_h;       // Foot rebate starts (44.36)
+funnel_depth    = corner_wall;                        // 45 deg mouth funnel depth:
+                                                      // reaches the outer face on
+                                                      // every corner_wall wall
+foot_collar_x0  = foot_leg_len - foot_collar_h;       // Foot rebate starts (47.72)
 gusset_margin   = 2;                                  // Gusset-to-rebate standoff
-gusset_leg_x    = foot_collar_x0 - gusset_margin - g_out; // Gusset foot leg (15.34)
+gusset_leg_x    = foot_collar_x0 - gusset_margin - cg_out; // Gusset foot leg (11.98)
 
 // End-T / cross: arm reach from the local origin to each pocket mouth.
 endt_foot_reach = h_g + endt_foot_depth + bottom_gap;   // 74.51
@@ -331,10 +404,10 @@ cap_out = cap_in + 2 * cap_wall;
 cap_h   = cap_face + cap_depth;
 
 // Assembly positions. Tubes seat bottom_gap shy of each blind web.
-foot_x0 = wall + bottom_gap;          // Foot tube start (inside the corner)
+foot_x0 = corner_wall + bottom_gap;   // Foot tube start (inside the corner)
 foot_x1 = foot_x0 + foot_len;         // Foot tube tip
 endt_x  = foot_x1 + bottom_gap + h_g; // End-T local origin
-vert_z0 = heel_z0 + wall + bottom_gap; // Pole bottom — above the skirting
+vert_z0 = heel_z0 + corner_wall + bottom_gap; // Pole bottom — above the skirting
 
 // Headboard clamp / thumbscrew. Male thread first, female = male
 // grown by the clearances (radial) and widened flanks (axial).
@@ -367,26 +440,32 @@ assert(toe_len > toe_depth + bottom_gap + 50,
 assert(min(corner_vert_depth, corner_foot_depth, endt_foot_depth, toe_depth)
            > lead_in + 10,
        "socket too shallow for its lead-in flare");
+assert(min(corner_vert_depth, corner_foot_depth) >= min_engage,
+       "corner socket engagement under min_engage — the joint will wobble");
 assert(rib_proud < grip_clear + 0.15,
        "crush ribs too proud — the tube cannot be inserted");
 assert(wall > 2 * 0.42,
        "socket wall thinner than 2 extrusion loops");
+assert(corner_wall >= wall,
+       "corner_wall below wall — the corner bracket carries the most loaded sockets");
+assert(tube_lift >= 0,
+       "corner foot floor thinner than the end-T / cross floors — their pads would be negative");
 assert(vert_leg_h > heel_z0 + 20,
        "wall heel bearing face under 20 mm — raise corner_vert_depth past the skirting");
 assert(pole_standoff >= wall + slide_clear + 1,
        "pole_standoff too small — the headboard clamp's sleeve cannot pass between pole and wall");
-assert(pole_standoff + tube + 2 * grip_clear + wall <= skirting_t + g_out,
+assert(pole_standoff >= corner_wall,
+       "pole socket back wall (pole_standoff) thinner than corner_wall — the pole collar's weakest side");
+assert(pole_standoff + tube + 2 * grip_clear + corner_wall <= skirting_t + cg_out,
        "vertical socket does not fit within the heel + riser depth");
 assert(vert_leg_h <= 260,
        "corner bracket profile too long to print on its side on the 270 mm bed");
 assert(cross_arm_reach - 0.3 * toe_depth > h_s + web_gusset_leg + screw_d / 2 + 1,
        "cross toe screw holes fall inside the gussets — shrink web_gusset_leg");
-assert(!lighten || lighten_z1 - lighten_z0 > 20,
-       "riser lightening pocket shorter than 20 mm — reduce lighten_rim or leave lighten off");
 assert(!collar || collar_h <= vert_leg_h - heel_z0,
        "collar reaches below the heel, where the bracket section narrows to the bare riser — reduce collar_h");
-assert(!collar || collar_h > 25,
-       "collar too short to hoop the socket mouth usefully");
+assert(!collar || collar_h >= min_collar,
+       "pole collar under min_collar — too little weld lap to support the socket");
 assert(!collar || !screw_holes ||
        (corner_vscrew_z > collar_z0 + 8 && corner_vscrew_z < vert_leg_h - 8),
        "pole screw sits within 8 mm of a collar edge — retune its 0.35 depth factor or collar_h");
@@ -396,17 +475,15 @@ assert(!collar || collar_lip >= 2 * 0.42,
        "rebated socket lip under 2 extrusion loops — reduce collar_recess");
 assert(!collar || collar_lead <= collar_net_wall - 0.3,
        "collar_lead flare nearly consumes the hoop wall — it leaves a knife edge at the leading rim");
-assert(!collar || collar_relief <= collar_net_wall - 0.42,
-       "bore corner relief cuts the collar's hoop wall below one extrusion at the relief crests");
-assert(!collar || (foot_collar_h > 25 && foot_collar_h <= corner_foot_depth),
-       "foot collar must hoop the mouth usefully (>25) and stay within the socket depth");
+assert(!collar || collar_relief <= collar_net_wall - 2 * 0.42,
+       "bore corner relief cuts the collar's hoop wall below two extrusions at the relief crests");
+assert(!collar || (foot_collar_h >= min_collar && foot_collar_h <= corner_foot_depth),
+       "foot collar must reach min_collar for its weld lap and stay within the socket depth");
 assert(gusset_leg_x >= 10,
        "gusset foot leg under 10 mm — shorten foot_collar_h or reduce gusset_margin");
 assert(!collar || !screw_holes ||
        (corner_fscrew_x > foot_collar_x0 + 8 && corner_fscrew_x < foot_leg_len - 8),
        "foot screw sits within 8 mm of a foot-collar edge — retune its 0.25 depth factor or foot_collar_h");
-assert(!lighten || (lighten_floor >= 2 * 0.42 && lighten_d > 5),
-       "lightening pocket leaves too thin a bed-side skin, or is too shallow to be worth cutting");
 assert(ts_f_phi_root < 175,
        "female thread root lobe nearly a full circle — reduce ts_root or ts_clear_ax");
 assert(ts_tip_d / 2 < ts_min_r,
@@ -443,22 +520,21 @@ echo(str("SKIRTING: heel bears on the wall z ", heel_z0, "-", vert_leg_h,
 echo(str("POLE: back face ", pole_standoff, " mm off the wall, seats at z ",
          vert_z0, " (above the skirting); a ", vertical_len,
          " tube tops out at z ", vert_z0 + vertical_len));
-echo(str("WALLS: ", wall, " mm = ", wall / 0.42, " extrusion lines at 0.42 mm"));
+echo(str("WALLS: ", wall, " mm = ", wall / 0.42, " extrusion lines at 0.42 mm;",
+         " corner bracket ", corner_wall, " mm = ", corner_wall / 0.42,
+         " lines, foot pocket floor included; end-T and cross stand on ",
+         tube_lift, " mm pads to match its tube datum"));
 if (collar) {
-    echo(str("COLLAR pole: flush band ", collar_sec_w, " x ", g_out, " x ",
+    echo(str("COLLAR pole: flush band ", collar_sec_w, " x ", cg_out, " x ",
              collar_h, " mm on a ", collar_lip, " mm lip, hoop wall ",
              collar_net_wall, " mm. Its back face restores the heel's",
              " wall-bearing plane (the old slide-over collar stood 3.51 mm",
              " proud of the wall). Weld on BEFORE inserting the pole."));
-    echo(str("COLLAR foot: ", g_out, " sq x ", foot_collar_h,
-             " mm at the foot mouth, flush with the floor. Both collars",
-             " print standing on a ~1 mm ring first layer — use a brim."));
+    echo(str("COLLAR foot: ", cg_out, " sq x ", foot_collar_h,
+             " mm at the foot mouth, flush with the floor, on a ", collar_lip,
+             " mm lip. Both collars print standing on a ~",
+             collar_net_wall - collar_lead, " mm ring first layer — use a brim."));
 }
-if (lighten)
-    echo(str("LIGHTENING: riser pocket ", lighten_x1 - lighten_x0, " x ",
-             lighten_z1 - lighten_z0, " x ", lighten_d, " mm removes ~",
-             (lighten_x1 - lighten_x0) * (lighten_z1 - lighten_z0) * lighten_d / 1000,
-             " cm3 from the corner bracket"));
 echo(str("CLAMP: thumbscrew M", ts_major_d, "x", ts_pitch, " printed thread, ",
          ts_press_eng / ts_pitch, " turns engaged at the pole, head-to-boss gap ",
          ts_press_gap, " mm when pressed home"));
@@ -563,15 +639,15 @@ module toe_frame(side, attach_half) {
 // ============================================================
 
 module corner_profile_2d() {
-    square([foot_leg_len, g_out]);
-    square([g_out, vert_leg_h]);
+    square([foot_leg_len, cg_out]);
+    square([cg_out, vert_leg_h]);
     // Inner-corner gusset: carries the lean load from the vertical
     // leg down into the foot leg. Steeper than 45 degrees — its foot
     // leg is capped at gusset_leg_x so it stays gusset_margin clear
     // of the foot collar's rebate landing at the mouth.
-    polygon([[g_out, g_out],
-             [g_out + gusset_leg_x, g_out],
-             [g_out, g_out + gusset_leg_z]]);
+    polygon([[cg_out, cg_out],
+             [cg_out + gusset_leg_x, cg_out],
+             [cg_out, cg_out + gusset_leg_z]]);
     // Wall heel: reaches back over the skirting to bear on the
     // wall. Everything below heel_z0 behind the back face is kept
     // clear — that space belongs to the skirting board. The +1
@@ -579,23 +655,6 @@ module corner_profile_2d() {
     // shape that merely touches).
     translate([-skirting_t, heel_z0])
         square([skirting_t + 1, vert_leg_h - heel_z0]);
-}
-
-// Lightening pocket in the riser slug — the solid block between the
-// foot socket and the pole socket, which is over 40% of the bracket
-// yet carries the lean load only in its outer fibres, like the web of
-// an I-beam. Cut into the -Y face, which faces UP in the print
-// orientation, so the pocket opens upward: no bridge, no support, no
-// overhang. The +Y face keeps a lighten_floor skin and lies on the bed.
-// This is the one place the bracket is not symmetric across Y — on one
-// of the two side frames the recess faces the bed, on the other it
-// faces out. Both are hidden against the wall.
-module corner_lightening() {
-    translate([0, lighten_d - h_g, 0]) rotate([90, 0, 0])
-        linear_extrude(height = lighten_d + eps)
-            rounded_outline()
-                translate([lighten_x0, lighten_z0])
-                    square([lighten_x1 - lighten_x0, lighten_z1 - lighten_z0]);
 }
 
 // Rebates for the flush collars: rings cut into the socket outsides
@@ -613,11 +672,11 @@ module pole_rebate_cut() {
 
 module foot_rebate_cut() {
     difference() {
-        translate([foot_collar_x0, -h_g - 1, -1])
-            cube([foot_collar_h + 2, g_out + 2, g_out + 2]);
-        translate([foot_collar_x0 - 1, -h_g + collar_recess, collar_recess])
+        translate([foot_collar_x0, -h_cg - 1, -1])
+            cube([foot_collar_h + 2, cg_out + 2, cg_out + 2]);
+        translate([foot_collar_x0 - 1, -h_cg + collar_recess, collar_recess])
             cube([foot_collar_h + 4,
-                  g_out - 2 * collar_recess, g_out - 2 * collar_recess]);
+                  cg_out - 2 * collar_recess, cg_out - 2 * collar_recess]);
     }
 }
 
@@ -625,24 +684,25 @@ module corner_bracket() {
     difference() {
         union() {
             difference() {
-                translate([0, h_g, 0]) rotate([90, 0, 0])
-                    linear_extrude(height = g_out)
+                translate([0, h_cg, 0]) rotate([90, 0, 0])
+                    linear_extrude(height = cg_out)
                         rounded_outline() corner_profile_2d();
                 // Foot pocket: opens +X, blind web at the outer corner.
-                translate([foot_leg_len, 0, h_g]) rotate([0, 90, 0])
+                // Centred in the leg: its corner_wall floor is the tube
+                // datum the end-T and cross pads match.
+                translate([foot_leg_len, 0, h_cg]) rotate([0, 90, 0])
                     pocket_cut(corner_foot_depth + bottom_gap, g_in);
                 // Vertical pocket: opens up, sitting BEHIND the riser
                 // over the heel so the pole rides pole_standoff off the
                 // wall. Its seat web is the heel's top skin.
                 translate([socket_cx, 0, vert_leg_h])
                     pocket_cut(corner_vert_depth + bottom_gap, g_in);
-                if (lighten) corner_lightening();
             }
             if (crush_ribs) {
                 // Foot pocket: ribs on its ceiling only — they press the
                 // tube down onto the pocket floor, the tube-height datum.
                 // That face is print-vertical with the bracket on its side.
-                translate([foot_leg_len, 0, h_g]) rotate([0, 90, 0])
+                translate([foot_leg_len, 0, h_cg]) rotate([0, 90, 0])
                     pocket_ribs(corner_foot_depth + bottom_gap, g_in, ["-x"]);
                 // Vertical pocket: ribs on both X faces (print-vertical);
                 // the Y faces are the bed side and the bridge side.
@@ -653,20 +713,20 @@ module corner_bracket() {
         if (screw_holes) {
             // Both bores run across Y — vertical in the on-side print
             // orientation, so they print as clean circles.
-            translate([corner_fscrew_x, -h_g - 1, h_g])
+            translate([corner_fscrew_x, -h_cg - 1, h_cg])
                 screw_bore();
-            translate([socket_cx, -h_g - 1, corner_vscrew_z])
+            translate([socket_cx, -h_cg - 1, corner_vscrew_z])
                 screw_bore();
         }
         if (collar) {
             // Flush-collar rebates and the full-lip funnel mouths. Cut
             // AFTER the crush ribs are unioned: the rebates lie outside
             // the bore and cannot touch them, and the funnels are meant
-            // to trim the last ~0.9 mm of the rib tips at 45 degrees.
+            // to trim the rib ends back to funnel_depth below the mouth.
             pole_rebate_cut();
             foot_rebate_cut();
             translate([socket_cx, 0, vert_leg_h]) funnel_cut(g_in);
-            translate([foot_leg_len, 0, h_g]) rotate([0, 90, 0]) funnel_cut(g_in);
+            translate([foot_leg_len, 0, h_cg]) rotate([0, 90, 0]) funnel_cut(g_in);
         }
     }
 }
@@ -707,11 +767,11 @@ module corner_bracket() {
 // inside-corner radius cannot bind either.
 module collar_section_2d(grow, relief = 0) {
     offset(delta = grow)
-        translate([-skirting_t, -h_g])
-            square([collar_sec_w, g_out]);
+        translate([-skirting_t, -h_cg])
+            square([collar_sec_w, cg_out]);
     if (relief > 0)
-        for (px = [-skirting_t - grow, g_out + grow],
-             py = [-h_g - grow, h_g + grow])
+        for (px = [-skirting_t - grow, cg_out + grow],
+             py = [-h_cg - grow, h_cg + grow])
             translate([px, py]) circle(r = relief);
 }
 
@@ -762,15 +822,15 @@ module pole_collar() {
         // Clearance for the socket self-tapper, which then pins the
         // collar on as well.
         if (screw_holes && corner_vscrew_z > collar_z0 + screw_d)
-            translate([socket_cx, -h_g - 1, corner_vscrew_z])
+            translate([socket_cx, -h_cg - 1, corner_vscrew_z])
                 rotate([-90, 0, 0])
-                    cylinder(h = g_out + 2, d = screw_d, $fn = 24);
+                    cylinder(h = cg_out + 2, d = screw_d, $fn = 24);
     }
 }
 
 // Print orientation: standing as modelled — leading flare on the bed,
 // funnel mouth UP (the chamfer widens upward, so no overhang). The
-// first layer is a ~1 mm ring: use a brim.
+// first layer is a ~2.7 mm ring: use a brim.
 module pole_collar_printed() {
     translate([-collar_cx, 0, -collar_z0]) pole_collar();
 }
@@ -780,18 +840,19 @@ module pole_collar_printed() {
 // same doctrine as collar_section_2d().
 module fcollar_bore_2d() {
     offset(delta = collar_weld_clear)
-        square(g_out - 2 * collar_recess, center = true);
-    d = g_out / 2 - collar_recess + collar_weld_clear;
+        square(cg_out - 2 * collar_recess, center = true);
+    d = cg_out / 2 - collar_recess + collar_weld_clear;
     for (px = [-d, d], py = [-d, d])
         translate([px, py]) circle(r = collar_relief);
 }
 
 // Modelled standing, as printed: leading (flared) edge at z = 0 on
-// the bed, funnel mouth up.
+// the bed, funnel mouth up. The band is the leg's cg_out square, with
+// the foot pocket centred inside it.
 module foot_collar_printed() {
     difference() {
         linear_extrude(height = foot_collar_h)
-            square(g_out, center = true);
+            square(cg_out, center = true);
 
         // Bore over the rebated lip.
         translate([0, 0, -eps])
@@ -805,11 +866,11 @@ module foot_collar_printed() {
             translate([0, 0, collar_lead])
                 linear_extrude(height = eps)
                     offset(delta = collar_weld_clear)
-                        square(g_out - 2 * collar_recess, center = true);
+                        square(cg_out - 2 * collar_recess, center = true);
             translate([0, 0, -1])
                 linear_extrude(height = eps)
                     offset(delta = collar_weld_clear + collar_lead + 1)
-                        square(g_out - 2 * collar_recess, center = true);
+                        square(cg_out - 2 * collar_recess, center = true);
         }
 
         // Funnel chamfer at the mouth (see pole_collar()).
@@ -817,27 +878,28 @@ module foot_collar_printed() {
             translate([0, 0, foot_collar_h - (collar_net_wall - collar_land)])
                 linear_extrude(height = eps)
                     offset(delta = collar_weld_clear)
-                        square(g_out - 2 * collar_recess, center = true);
+                        square(cg_out - 2 * collar_recess, center = true);
             translate([0, 0, foot_collar_h + eps])
                 linear_extrude(height = eps)
                     offset(delta = collar_weld_clear + collar_net_wall
                                    - collar_land + eps)
-                        square(g_out - 2 * collar_recess, center = true);
+                        square(cg_out - 2 * collar_recess, center = true);
         }
 
-        // Clearance for the foot socket's self-tapper.
+        // Clearance for the foot socket's self-tapper, through the
+        // pocket centre — which is the leg's section centre.
         if (screw_holes)
-            translate([0, -h_g - 1,
+            translate([0, -h_cg - 1,
                        foot_collar_h - (foot_leg_len - corner_fscrew_x)])
                 rotate([-90, 0, 0])
-                    cylinder(h = g_out + 2, d = screw_d, $fn = 24);
+                    cylinder(h = cg_out + 2, d = screw_d, $fn = 24);
     }
 }
 
 // The same collar placed in bracket coordinates, for the assembly:
 // local +Z (print axis) becomes global +X, mouth at the foot mouth.
 module foot_collar() {
-    translate([foot_collar_x0, 0, h_g])
+    translate([foot_collar_x0, 0, h_cg])
         rotate([0, 90, 0]) foot_collar_printed();
 }
 
@@ -954,6 +1016,34 @@ module cross_bracket() {
                 cylinder(h = s_out - h_s + 1, d = screw_d, $fn = 24);
         }
     }
+}
+
+// ============================================================
+// TUBE-LIFT PADS
+// The corner bracket's foot floor is corner_wall thick, tube_lift more
+// than the `wall` floors the end-T and cross were first printed with.
+// A pad of each bracket's own footprint lifts it to the same tube
+// datum. endt_bracket() and cross_bracket() stay exactly as printed:
+// weld a loose pad under a bracket already made, or print the
+// *_raised() version, pad fused on, as one piece.
+// ============================================================
+
+module endt_pad() {
+    linear_extrude(height = tube_lift) rounded_outline() endt_footprint_2d();
+}
+
+module cross_pad() {
+    linear_extrude(height = tube_lift) rounded_outline() cross_footprint_2d();
+}
+
+module endt_raised() {
+    endt_pad();
+    translate([0, 0, tube_lift]) endt_bracket();
+}
+
+module cross_raised() {
+    cross_pad();
+    translate([0, 0, tube_lift]) cross_bracket();
 }
 
 // ============================================================
@@ -1133,8 +1223,12 @@ module assembly() {
     // Collar outer faces are exactly coplanar with the bracket's, so
     // the preview z-fights on them — cosmetic only.
     if (collar) color("darkorange") { pole_collar(); foot_collar(); }
-    color("mediumseagreen") translate([cross_station, 0, 0]) cross_bracket();
-    color("orange") translate([endt_x, 0, 0]) endt_bracket();
+    color("mediumseagreen") translate([cross_station, 0, tube_lift]) cross_bracket();
+    color("orange") translate([endt_x, 0, tube_lift]) endt_bracket();
+    color("dimgray") {
+        translate([cross_station, 0, 0]) cross_pad();
+        translate([endt_x, 0, 0]) endt_pad();
+    }
 
     // Aluminium, seated bottom_gap shy of each blind web.
     %translate([foot_x0, 0, tube_z]) rotate([0, 90, 0]) ghost_tube(foot_len);
@@ -1174,25 +1268,29 @@ module assembly() {
 pp_corner = [-105, -130];  // corner, on its side, foot leg along +X, heel at -X
 pp_endt   = [90, -60];     // end-T, floor down
 pp_cross  = [50, 90];      // cross, floor down, rotated 90 (long axis on X)
-pp_caps   = [[-8, -120], [-8, -88], [-8, -56], [-8, -24], [-8, 8]];
-pp_collar = [55, 32];      // pole collar, standing, flare down, mid-plate
-pp_fcollar = [125, -100];  // foot collar, standing, flare down
+pp_caps   = [[122, -120], [122, -90], [122, -60], [122, -30], [122, 0]];
+                           // caps in a column right of the end-T — the 98 mm
+                           // foot leg now reaches the old column at X -7
+pp_collar = [52, 35];      // pole collar, standing, flare down, mid-plate
+pp_fcollar = [102, 35];    // foot collar, standing, flare down, beside the
+                           // pole collar between the end-T and the cross.
+                           // Both need brims: keep ~6 mm between them
 
 pp_min = [min(concat([pp_corner[0] - skirting_t, pp_endt[0] - endt_foot_reach,
                       pp_cross[0] - cross_arm_reach, pp_collar[0] - collar_sec_w / 2,
-                      pp_fcollar[0] - g_out / 2],
+                      pp_fcollar[0] - cg_out / 2],
                      [for (c = pp_caps) c[0] - cap_out / 2])),
           min(concat([pp_corner[1], pp_endt[1] - endt_arm_reach,
-                      pp_cross[1] - cross_half_x, pp_collar[1] - g_out / 2,
-                      pp_fcollar[1] - g_out / 2],
+                      pp_cross[1] - cross_half_x, pp_collar[1] - cg_out / 2,
+                      pp_fcollar[1] - cg_out / 2],
                      [for (c = pp_caps) c[1] - cap_out / 2]))];
 pp_max = [max(concat([pp_corner[0] + foot_leg_len, pp_endt[0] + h_g,
                       pp_cross[0] + cross_arm_reach, pp_collar[0] + collar_sec_w / 2,
-                      pp_fcollar[0] + g_out / 2],
+                      pp_fcollar[0] + cg_out / 2],
                      [for (c = pp_caps) c[0] + cap_out / 2])),
           max(concat([pp_corner[1] + vert_leg_h, pp_endt[1] + endt_arm_reach,
-                      pp_cross[1] + cross_half_x, pp_collar[1] + g_out / 2,
-                      pp_fcollar[1] + g_out / 2],
+                      pp_cross[1] + cross_half_x, pp_collar[1] + cg_out / 2,
+                      pp_fcollar[1] + cg_out / 2],
                      [for (c = pp_caps) c[1] + cap_out / 2]))];
 
 assert(pp_max[0] - pp_min[0] <= 270 && pp_max[1] - pp_min[1] <= 270,
@@ -1209,14 +1307,20 @@ echo(str("PRINTPLATE footprint: ", pp_max[0] - pp_min[0], " x ",
 
 if (part == "corner") {
     // On its side: layers run along both legs and the gusset.
-    translate([-foot_leg_len / 2, -vert_leg_h / 2, h_g])
+    translate([-foot_leg_len / 2, -vert_leg_h / 2, h_cg])
         rotate([-90, 0, 0]) corner_bracket();
 
 } else if (part == "endt") {
-    endt_bracket();
+    endt_raised();
 
 } else if (part == "cross") {
-    cross_bracket();
+    cross_raised();
+
+} else if (part == "pads") {
+    // Loose pads for end-T and cross brackets printed before the lift:
+    // weld each under its bracket. Lazy-union items 1 end-T, 2 cross.
+    endt_pad();
+    translate([50, 0, 0]) cross_pad();
 
 } else if (part == "cap") {
     end_cap();
@@ -1255,9 +1359,9 @@ if (part == "corner") {
     // the slicer sees every part as its own object:
     // 1 corner, 2 end-T, 3 cross, 4-8 caps, 9 pole collar,
     // 10 foot collar.
-    translate([pp_corner[0], pp_corner[1], h_g]) rotate([-90, 0, 0]) corner_bracket();
-    translate(pp_endt) endt_bracket();
-    translate(pp_cross) rotate([0, 0, 90]) cross_bracket();
+    translate([pp_corner[0], pp_corner[1], h_cg]) rotate([-90, 0, 0]) corner_bracket();
+    translate(pp_endt) endt_raised();
+    translate(pp_cross) rotate([0, 0, 90]) cross_raised();
     translate(pp_caps[0]) end_cap();
     translate(pp_caps[1]) end_cap();
     translate(pp_caps[2]) end_cap();
@@ -1270,5 +1374,5 @@ if (part == "corner") {
     assembly();
 
 } else {
-    echo("Unknown part — corner | collar | fcollar | endt | cross | cap | clamp | screw | clampset | printplate | check | assembly");
+    echo("Unknown part — corner | collar | fcollar | endt | cross | pads | cap | clamp | screw | clampset | printplate | check | assembly");
 }

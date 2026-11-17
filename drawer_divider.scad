@@ -33,7 +33,8 @@
 // one wall sideways and the whole frame leans like a parallelogram,
 // because the only thing resisting it is the 2.5 mm root of each wall.
 // So every inside corner where two walls cross is braced by a flat
-// strip lying on the drawer floor, and each one runs the full diagonal
+// strip lying on the drawer floor — a wide, thin plate, not a rib on
+// edge — and each one runs the full diagonal
 // of its compartment: from the far end of one bounding wall to the far
 // end of the other — the outermost point either wall can offer, and so
 // the longest member the compartment can hold.
@@ -96,7 +97,7 @@ $fs = 0.4; // Minimum facet edge length (mm) — matched to a 0.4 mm nozzle
 /* [Drawer] */
 width  = 440;  // Drawer inner width  (X)
 depth  = 270;  // Drawer inner depth  (Y)
-height = 200;   // Divider wall height (Z)
+height = 195;   // Divider wall height (Z)
 
 /* [Grid] */
 width_cells = 3;  // Number of compartments across the width
@@ -120,9 +121,11 @@ mesh_hole     = 30;    // Target square hole size — also the bridge span
 mesh_hole_min = 6;     // Bays that can only fit a smaller hole stay solid
 
 /* [Base braces] */
+// The strip lies flat on the drawer floor: much wider than it is tall,
+// so it reads as a floor plate rather than a rib standing on edge.
 brace      = true;  // false leaves the base of the grid unbraced
-brace_w    = 4;     // Width of the diagonal strip
-brace_h    = 8;     // How high the strip stands off the drawer floor
+brace_w    = 10;    // Width of the diagonal strip, across the floor
+brace_h    = 2.5;   // Thickness of the strip — how high it stands off the floor
 brace_ov   = 0.5;   // How far the ends bury into the wall they land on
 foot_flare = 18;    // Reach of the gussets that flare the split foot
 
@@ -134,7 +137,7 @@ split_x = -1;   // X of the split plane (mm), or -1 for width/2
 // The butt foot — the flat T at the end of every full-width wall that
 // reaches the split plane.  Purely a bumping face; nothing engages.
 foot_w  = 24;   // Crossbar width across the wall (Y)
-foot_t  = 5;    // Crossbar thickness along the wall (X), per half
+foot_t  = 4;    // Crossbar thickness along the wall (X), per half
 foot_h  = 12;   // Crossbar height — tapers back to wall_t at the top
 
 /* [Bed] */
@@ -172,8 +175,10 @@ fr = min(fillet_r, cell_w / 2, cell_d / 2);
 sx = split_x < 0 ? width / 2 : split_x;
 
 // How far either side of the split plane the mesh is kept out, so the
-// wall ends in solid material and no hole ever pierces a foot.
-split_kb = foot_t + mesh_strut;
+// wall ends in solid material and no hole ever pierces a foot.  One
+// strut's worth, or the foot's thickness if that is more — no wider,
+// so the cut edge of the wall is no heavier than any other strut.
+split_kb = max(foot_t, mesh_strut);
 
 // Perpendicular distance from a braced corner to the diagonal spanning
 // legs a and b — the widest strip that corner could possibly take.

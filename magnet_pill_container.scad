@@ -4,11 +4,14 @@
 // A magnet-storage case and the bench it works on.
 //
 // THE CASE
-//   * 13 mm bore, 80 mm usable depth.
+//   * 15 mm bore, 80 mm usable depth.
 //   * An open vertical slit down one side so the magnet stack
-//     is visible from outside.
+//     is visible from outside.  It runs as high as the cap's
+//     seat allows, and is cut a second time once the holder's
+//     arm is unioned on, so no arm material can fill it (see
+//     the holder).
 //   * A screw-on cap that finishes FLUSH with the body: the
-//     closed case is one smooth 21 mm cylinder, no shoulder.
+//     closed case is one smooth cylinder, no shoulder.
 //   * A DELIBERATELY THIN floor, so the bottom magnet in the
 //     stack sits as close as it can to whatever is underneath.
 //
@@ -96,6 +99,27 @@
 // builds everything, with no second command to forget and no way to end up
 // having printed half a machine.
 //
+// MATERIAL.  Every part is trimmed to the work it actually does, and the
+// trims live in the parameters rather than in hidden numbers:
+//   * the base plate is as thin as its socket and its cavity roof allow
+//     (see [Base plate] and [Socket]), and its hubs are as small as the
+//     clamp thread leaves them;
+//   * the clamp slab is only as thick as its grips must swallow (slab;
+//   * the case's wall is only as thick as the printed thread stack and
+//     the cap's skin require (see [Case] and [Cap thread])_t);
+//   * the holder's arm carries a window (lighten_arm) where the
+//     cantilever has an order of magnitude to spare;
+//   * the beams are hollowed by a core down their axes (lighten_post).
+// Printed with 0.42 mm extrusion and FIVE wall loops, the beams' 5 mm
+// walls come out as solid perimeters — which is what makes the core a
+// better hollow than sparse infill in a part that works in bending: the
+// sliding sleeves then run on walls that are plastic all the way
+// through.  Keep infill low (10-15 % gyroid) wherever the walls carry
+// the load; the grips and the printed threads are the only parts that
+// want density, because their jaws and threads take the hand-tightening
+// forces.  The case's floor is exempt from all of this — it is a
+// magnetic gap, not a structural member.
+//
 // All units: millimeters.
 // ============================================================
 
@@ -104,7 +128,7 @@
 part = "assembly";  // [holder:Case + carrier (one part), post:Beam, foot:Stabiliser foot, clamp:Edge clamp slab, grip:Edge grip, cap:Cap, base:Base + both sockets, cover:Base cover, thumbscrew:Thumbscrew, vicescrew:Grip screw, assembly:Assembled upright, horizontal:Laid flat, exploded:Print plate — the whole machine]
 
 /* [Case] */
-bore_d          = 13;    // Inner diameter of the tube
+bore_d          = 16;    // Inner diameter of the tube
 inner_depth     = 80;    // Usable depth for the magnet stack (includes the neck)
 tube_floor_t    = 1.6;   // Thickness of the case's closed floor.  Four layers at
                          // 0.4 mm.  This is the ONLY plastic between the bottom
@@ -113,29 +137,39 @@ tube_floor_t    = 1.6;   // Thickness of the case's closed floor.  Four layers a
                          // more than it looks.  The stack weighs well under 100 g,
                          // so four layers carry it easily; it is a knock on a hard
                          // edge, not the magnets, that would break a thinner floor.
-neck_wall       = 1.35;  // Wall thickness of the threaded neck (thinnest section)
-cap_wall        = 1.65;  // Side wall thickness of the cap
+neck_wall       = 1.2;   // Wall thickness of the threaded neck.  Three 0.42 mm
+                         // loops, and it only has to carry the cap's own
+                         // screwing force — the thinner it is, the thinner the
+                         // case's whole wall stack is.
+cap_wall        = 1.35;  // Side wall thickness of the cap — three loops over the
+                         // thread, and 0.9 mm left under the grip flutes.
 cap_top_t       = 2.5;   // Thickness of the cap's closed top
 
 /* [Cap thread] */
 thread_pitch    = 3;     // Axial rise per turn — coarse, so the cap opens fast
-thread_depth    = 0.75;  // Radial depth of the thread (crest minus root)
-thread_crest    = 0.75;  // Axial width of the flat crest
-thread_root     = 0.75;  // Axial width of the flat root
+thread_depth    = 0.6;   // Radial depth of the thread (crest minus root).  With
+                         // the crest and root below it still fills one pitch
+                         // exactly, so the flanks stay at 45 deg.
+thread_crest    = 0.9;   // Axial width of the flat crest
+thread_root     = 0.9;   // Axial width of the flat root
 thread_turns    = 3;     // Turns of engagement — sets the neck height
 fit_clear_r     = 0.25;  // Radial clearance between male and female thread
 fit_clear_ax    = 0.25;  // Axial (flank) clearance between male and female thread
 
 /* [Slit] */
 slit_w          = 3.5;   // Width of the viewing slit
-slit_margin_bot = 3;     // Solid ring left between the floor and the slit
-slit_margin_top = 3;     // Solid ring left between the slit and the neck
+slit_margin_bot = 1.5;   // Solid ring left between the floor and the slit — only
+                         // just enough to keep the floor's edge intact.
+slit_margin_top = 1.2;   // Solid ring left between the slit and the neck: the slot
+                         // is run as high as the cap's seat allows, so the stack
+                         // is visible almost up to the shoulder.
 slit_angle      = 0;     // Rotates the slit.  0 = facing outward when mounted.
 
 /* [Grip] */
 flute_count     = 18;    // Number of grip scallops around the cap
 flute_r         = 1.2;   // Radius of each scallop
-flute_depth     = 0.55;  // How deep each scallop bites into the cap wall
+flute_depth     = 0.45;  // How deep each scallop bites into the cap wall — the
+                         // cap's skin is thinner now, so the scallops bite less
 
 /* [Base plate] */
 // Rectangular, because it now carries TWO beams in line.  The long axis runs
@@ -145,13 +179,20 @@ beam_pitch      = 110;   // Centre-to-centre spacing of the two beam sockets.
                          // Sized so the case, reaching in from its own beam,
                          // lands over the middle of the clamped workpiece and
                          // still clears the clamp's sleeve and slab.
-plate_h         = 14;    // Total plate thickness
+plate_h         = 12.5;  // Total plate thickness.  Trimmed from 14: every
+                         // millimetre here is paid across the whole footprint,
+                         // and the socket only reaches 8 below the top face.
+                         // What remains above the cavity is a 2.5 mm skin, and
+                         // it sits over the load pads rather than spanning.
 plate_ch        = 2.5;   // Chamfer on the plate's top and bottom edges
 plate_corner_r  = 6;     // Corner rounding of the plate
 cover_inset     = 7;     // Border left outside the cover rebate
 cover_t         = 2;     // Thickness of the snap-in cover
 cover_fit       = 0.15;  // Per-side clearance of the cover in its rebate
-cav_inset       = 10;    // Border left outside the fill cavity
+cav_inset       = 8;     // Border left outside the fill cavity.  Trimmed from
+                         // 10: still wider than the cover's 7 mm rebate border,
+                         // so the cavity stays under the cover, and the border
+                         // keeps the snap groove its wall.
 cav_depth       = 8;     // Depth of the fill cavity
 cav_rib         = 3;     // Thickness of the cavity's bracing ribs
 snap_d          = 0.45;  // Depth of the cover's retaining snap rib
@@ -165,12 +206,20 @@ post_edge_ch    = 0.8;   // Chamfer along the post's four long edges.  Absorbs t
                          // the corners from binding in the square socket.
 post_end_ch     = 1.5;   // Chamfer on BOTH ends — the post is symmetric, so either
                          // end can go into the socket
+lighten_post    = true;  // Hollow each beam down its axis.  Printed with 5 wall
+                         // loops a 5 mm wall is plastic all the way through, so
+                         // this is a better hollow than infill in a bending part.
+post_core       = 10;    // Size of that core, square across the beam
+post_core_r     = 2;     // Corner rounding inside it — no square-corner risers
 post_print_roll = 90;    // Roll about its own axis when laid down to print, so that
                          // an UNMARKED face is the one on the bed.  Engraving the
                          // face that meets the PEI sheet would only smear it.
 
 /* [Socket] */
-hub_size        = 30;    // Square socket hub standing on the base plate
+hub_size        = 28;    // Square socket hub standing on the base plate.
+                         // Trimmed from 30: hub_wall still clears the guard's
+                         // 3 mm around the socket, and a smaller hub shrinks
+                         // the load pad it stands on, which grows the cavity.
 hub_h           = 20;    // Hub height above the plate's top face
 hub_flare       = 8;     // 45 deg gusset where the hub meets the plate
 hub_ch          = 1.5;   // Chamfer at the top of the hub
@@ -227,6 +276,12 @@ arm_w           = 10;    // Arm thickness, measured across the beam
 arm_fillet      = 5;     // Radius blended into both ends of the arm.  Filling the
                          // re-entrant corners is what stops the arm root being a
                          // stress riser; the arm itself is nowhere near its limit.
+lighten_arm     = true;  // Cut a window through the middle of the arm.  The root
+                         // stress is under a tenth of a megapascal, so the two
+                         // rails left either side of it carry the case easily.
+arm_rim         = 2.5;   // Rail left either side of that window, across the arm
+arm_web         = 2;     // Web left at each end of it, clear of both fillets
+arm_window_r    = 1.5;   // Corner rounding inside the window
 
 /* [Thumbscrew] */
 ts_pitch        = 2.5;   // Thumbscrew thread pitch
@@ -252,7 +307,9 @@ foot_span       = 110;   // Total width of the foot across the beam.  Widened fr
                          // flat.  A 76 mm foot would leave only a few degrees of
                          // margin before it rolled over.
 foot_len        = 40;    // Length of the foot along the beam
-foot_pad_t      = 5;     // Thickness of the flat pad at its outer edges
+foot_pad_t      = 4;     // Thickness of the flat pad at its outer edges.  Trimmed
+                         // from 5: the pad spreads the stance, the buttress does
+                         // the stiffening.
 foot_rise       = 16;    // How far the buttress climbs the sleeve's sides
 foot_round      = 1.5;   // Corner rounding on the foot's profile
 foot_screw_side = 180;   // Which face the foot's clamp screw sits on.  180 puts it
@@ -275,8 +332,11 @@ clamp_h          = 40;   // Sleeve height, matching the holder and the foot
 clamp_screw_side = 180;  // Which face the clamp's BEAM screw sits on.  180 puts it
                          // behind the beam, away from the slab.  On face 90 the
                          // screw head swings out to within 5 mm of the slab.
-slab_t           = 14;   // Slab thickness.  The grips clamp through it, so it is
-                         // part of what their throat has to swallow.
+slab_t           = 10;   // Slab thickness.  The grips clamp through it, so it is
+                         // part of what their throat has to swallow.  Trimmed
+                         // from 14 — the biggest lever on the clamp: the screw's
+                         // load runs through the metal into the slab, which is
+                         // squeezed between the grip's legs, never bent.
 slab_reach       = 36;   // How far the slab's front edge stands from the beam axis.
                          // Everything forward of that edge is bare metal.
 slab_half        = 62;   // Half the slab's width.  Sets how far apart the grips go,
@@ -427,6 +487,7 @@ rib_gap       = rib_step - cav_rib;                 // the pocket that actually 
 // --- Post and socket -----------------------------------------
 hub_flare_h   = hub_flare / 2;                      // 45 deg gusset
 hub_top       = plate_h + hub_h;
+post_wall     = (post_size - post_core) / 2;        // wall left by the lightening core
 socket_size   = post_size + 2 * socket_clear;
 socket_depth  = hub_h + socket_sink;                // hub plus the reach into the plate
 socket_z0     = plate_h - socket_sink;              // socket floor
@@ -468,6 +529,15 @@ arm_span      = case_gap;
 // for printability and for the fillet it can carry, not for strength.
 arm_h         = carrier_h;
 arm_z_mod     = arm_w * arm_h * arm_h / 6;
+
+// The lightening window: a slot through the arm, clear of both fillets and
+// of the tubes at either end.  What is left is two rails and two webs, so
+// the arm behaves as a ring rather than a plate.  Its walls are vertical in
+// the print, which is why it is a window and not a pocket.
+arm_win_y0    = sleeve_out / 2 + arm_fillet + arm_web;
+arm_win_y1    = case_cy - body_r - arm_fillet - arm_web;
+arm_win_len   = arm_win_y1 - arm_win_y0;
+arm_win_w     = arm_w - 2 * arm_rim;
 
 // The case now runs well clear of the beam, so this is simply how much
 // daylight there is between them.
@@ -617,6 +687,8 @@ assert(ts_crest + ts_root + 2 * ts_depth <= ts_pitch + eps,
        "Thumbscrew thread profile does not fit in one pitch — reduce ts_crest/ts_root/ts_depth.");
 assert(slit_z1 > slit_z0,
        "Slit margins leave no room for a slit — reduce slit_margin_top/bot or increase inner_depth.");
+assert(slit_margin_top >= 1 && slit_margin_bot >= 1,
+       "Slit ring under the cap's seat, or above the floor, would be too thin to print — raise the margins.");
 assert(cap_wall - flute_depth >= 0.8,
        "Grip flutes cut the cap wall too thin — reduce flute_depth or increase cap_wall.");
 assert(case_gap > 2,
@@ -627,6 +699,12 @@ assert(arm_fillet * 2 < arm_span,
        "Arm fillets would meet in the middle — reduce arm_fillet or raise case_gap.");
 assert(arm_w + 2 * arm_fillet < sleeve_out,
        "Arm plus its fillets is wider than the sleeve it springs from — reduce arm_w or arm_fillet.");
+assert(!lighten_arm || arm_win_w >= 4,
+       "Arm lightening window leaves under 4 mm of rail — raise arm_w or reduce arm_rim.");
+assert(!lighten_arm || arm_win_len >= 8,
+       "Arm lightening window shorter than 8 mm — reduce arm_web or arm_fillet.");
+assert(!lighten_arm || (arm_win_y0 > sleeve_out / 2 && arm_win_y1 < case_cy - body_r),
+       "Arm lightening window reaches into a tube — check arm_web and arm_fillet.");
 assert(post_gap >= 0.8,
        "Case would run too close to the beam above the sleeve — raise case_gap.");
 assert(socket_sink <= plate_h - cover_t - 2,
@@ -637,6 +715,10 @@ assert(hub_wall >= 3,
        "Too little meat around the socket for the clamp thread — widen hub_size.");
 assert(post_free > carrier_h + 20,
        "Post barely projects from the hub — lengthen post_len.");
+assert(!lighten_post || post_wall >= 4,
+       "Beam core leaves under a 4 mm wall — reduce post_core or widen post_size.");
+assert(!lighten_post || post_core_r * 2 < post_core,
+       "Beam core corner rounding meets itself — reduce post_core_r.");
 assert(!scale_on || tick_major < post_flat - 2,
        "Major ticks are wider than the beam's face — shorten tick_major.");
 assert(!scale_on || !scale_numbers || num_lift + num_size < 10 * scale_step,
@@ -729,8 +811,8 @@ assert(ts_clamp_gap <= ts_len,
 //
 // repeating every pitch.  So the AXIAL profile of the thread is
 // read straight off the lobe's angular width: wide at the root
-// and narrow at the crest gives a trapezoidal thread.  With
-// pitch 3, a 0.75 mm crest and a 0.75 mm root that is
+// and narrow at9 mm crest and a 0.9 mm root that is
+// phi = 126 deg at the root tapering to 54oot that is
 // phi = 135 deg at the root tapering to 45 deg at the crest,
 // which yields 45 deg flanks — self-supporting when printed.
 //
@@ -831,6 +913,11 @@ module chamfered_box(sx, sy, sz, ch, cr = 0) {
 // Vertical viewing slit: a rounded-end slot cut radially through
 // one wall.  The rounded top means no horizontal bridge to print
 // and no sharp stress riser in a tube that is already open.
+//
+// It is cut into the case here AND cut again in holder(), after the
+// arm is unioned on: the arm's plan profile runs right through the
+// case wall, so without that second cut it would come back as solid
+// plastic over the whole lower half of the slot.
 module slit_cut() {
     rotate([0, 0, slit_angle])
         rotate([90, 0, 0])
@@ -937,10 +1024,11 @@ module case_cap() {
 // BENCH — base plate and sockets
 // ============================================================
 
-// The beams are solid rather than shelled: the slicer's infill is a
-// far cheaper way to hollow a 150 mm column than modelled walls,
-// which would slice as 100 % perimeter.  Solid also gives the
-// thumbscrew a proper bearing face instead of a thin wall to dent.
+// The beams are HOLLOWED by a modelled core (lighten_post) rather than
+// left for the slicer's infill: printed with 5 wall loops a 5 mm wall
+// is plastic all the way through, so the core puts the material where a
+// bending part wants it — in two thick walls — and the clamp screws
+// still bear on solid plastic rather than on a skin.
 // ============================================================
 // POST RULER
 // ============================================================
@@ -1030,6 +1118,15 @@ module post_edge_chamfers() {
 module post() {
     difference() {
         post_blank();
+
+        // The lightening core, run right through: the ends are symmetric
+        // like everything else about the beam, and a clamp screw bearing
+        // on one of its walls is bearing on solid plastic.
+        if (lighten_post)
+            translate([0, 0, -eps])
+                linear_extrude(post_len + 2 * eps)
+                    rounded_square(post_core, post_core, post_core_r);
+
         post_edge_chamfers();
         if (scale_on) scale_cut();
     }
@@ -1235,7 +1332,8 @@ module ts_thread_negative(depth) {
 // full wall thickness at each end.  No clip, no shelf, no sprung arm,
 // nothing that can rattle or fatigue.  The case is turned 180 deg so that
 // slit_angle = 0 faces the slit outward, away from the beam, which also puts
-// the arm on the case's blind side where it cannot foul the slit.
+// the arm on the case's blind side.  The arm still crosses the slit inside
+// the case wall though, so the slit is cut a second time in holder().
 //
 // The arm is a single plan profile swept along the sleeve's axis, which is
 // what keeps the whole holder printable in one upright orientation: swept
@@ -1248,12 +1346,19 @@ module ts_thread_negative(depth) {
 // re-entrant corners filled.  Growing before shrinking is what fillets a
 // concave corner; the reverse, as the foot uses, rounds convex ones.
 module holder_plan_2d() {
-    offset(r = -arm_fillet) offset(r = arm_fillet)
-        union() {
-            rounded_square(sleeve_out, sleeve_out, 2);
-            translate([-arm_w / 2, 0]) square([arm_w, case_cy]);
-            translate([0, case_cy]) circle(r = body_r);
-        }
+    difference() {
+        offset(r = -arm_fillet) offset(r = arm_fillet)
+            union() {
+                rounded_square(sleeve_out, sleeve_out, 2);
+                translate([-arm_w / 2, 0]) square([arm_w, case_cy]);
+                translate([0, case_cy]) circle(r = body_r);
+            }
+
+        // Cut OUTSIDE the fillet offsets, so the blends stay whole.
+        if (lighten_arm)
+            translate([0, (arm_win_y0 + arm_win_y1) / 2])
+                rounded_square(arm_win_w, arm_win_len, arm_window_r);
+    }
 }
 
 // The arm as a solid.  The bore is cut back out of it above the case floor,
@@ -1292,6 +1397,14 @@ module holder() {
 
         // Threaded hole for the thumbscrew.
         clamp_hole(boss_reach, boss_z, ts_hole_depth);
+
+        // The viewing slit, cut again — AFTER the arm, whose plan profile
+        // runs right through the case wall.  Cut only in case_body it would
+        // come back as solid plastic below the arm's top face, and the stack
+        // would be visible over the top half of the slot only.
+        translate([0, case_cy, 0])
+            rotate([0, 0, 180])
+                slit_cut();
     }
 }
 
@@ -1627,6 +1740,24 @@ echo(str("HOLDER case, arm and sleeve are ONE part, ", holder_h,
          " mm off the beam axis — ", case_gap, " mm of clear air spanned by an ",
          arm_w, " x ", arm_h, " mm arm, grown into both bodies rather than",
          " lapped onto them"));
+if (lighten_post)
+    echo(str("LIGHTENING: each beam hollowed by a ", post_core, " x ", post_core,
+             " mm core, leaving ", post_wall, " mm walls — removes ~",
+             post_core * post_core * post_len / 1000, " cm3 per beam, ",
+             2 * post_core * post_core * post_len / 1000,
+             " cm3 the pair, costing ~",
+             100 * (1 - (pow(post_size, 4) - pow(post_core, 4)) / pow(post_size, 4)),
+             " % of the solid section's bending stiffness"));
+if (lighten_arm)
+    echo(str("LIGHTENING: arm window ", arm_win_w, " x ", arm_win_len,
+             " mm through a ", arm_h, " mm arm removes ~",
+             arm_win_w * arm_win_len * arm_h / 1000,
+             " cm3 from a section whose root stress is under 0.1 MPa"));
+echo(str("LIGHTENING: plate ", plate_h, " mm thick (socket sinks ", socket_sink,
+         " below the top face, roof left ", plate_ceiling, " mm); cavity border ",
+         cav_inset, " mm; hub wall ", hub_wall, " mm; slab ", slab_t,
+         " mm; foot pad ", foot_pad_t, " mm.  The beams carry their own",
+         " hollow; keep infill low (10-15 % gyroid), grips and threads denser"));
 echo(str("LAYOUT the case lands ", case_at_y,
          " mm from the base's centre, clearing the clamp's sleeve by ",
          clear_sleeve, " mm and its slab by ", clear_slab, " mm"));
