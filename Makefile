@@ -60,6 +60,7 @@ PART_epoxy_spike_stand        := printplate
 PART_ginos                    := printplate
 PART_handbag_scroll_hook      := print
 PART_headboard_frame_brackets := printplate
+PART_knuckleduster            := print
 PART_logo_print               := body
 PART_logo_test                := body
 PART_magnet_pill_container    := exploded
