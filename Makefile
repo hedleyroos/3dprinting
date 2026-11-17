@@ -24,6 +24,24 @@
 # openscad --enable=lazy-union so the top-level objects stay SEPARATE
 # objects on the plate instead of being unioned into one mesh.
 #
+# SLICER CHECK
+# Every export is then sliced by OrcaSlicer (orca_check.py), which
+# prints the presets to use, the estimated time and filament, and any
+# warning Orca has ("floating regions", "large overhangs", ...). A
+# warning fails the export and the 3MF is deleted, like any failed
+# export. The presets come from the model's own `// ORCA:` header lines
+# (see orca_check.py); a model without them is sliced with the
+# everyday defaults, and the report says so.
+#
+# Slicing takes seconds to a minute or two per model, so for the whole
+# repo run several at once, or skip the check for a quick export:
+#
+#   make -j4                 # every model, four slicing at a time
+#   make CHECK=0 drawer_divider
+#
+# orca_check.py finds OrcaSlicer itself; ORCA=/path/to/OrcaSlicer
+# points it at another build.
+#
 # WHICH PART GETS EXPORTED
 # Most models have a `part` variable selecting what renders, and the
 # value that means "the print layout" differs from file to file —
@@ -47,6 +65,8 @@
 
 OPENSCAD ?= openscad
 EXPORT   := ./make_separate_3mf.py
+SLICE    := ./orca_check.py
+CHECK    ?= 1
 OUTDIR   ?= .
 
 # ------------------------------------------------------------
@@ -88,7 +108,7 @@ TARGETS := $(addprefix $(OUTDIR)/,$(addsuffix .3mf,$(MODELS)))
 part = $(PART_$(1))
 
 .PHONY: all list clean FORCE $(MODELS)
-.DELETE_ON_ERROR:   # a failed export must not leave a stale 3MF behind
+.DELETE_ON_ERROR:   # a failed export or slicer check must not leave a 3MF behind
 
 all: $(TARGETS)
 
@@ -101,8 +121,9 @@ $(MODELS): %: $(OUTDIR)/%.3mf
 # silently skipped one means printing yesterday's geometry.
 FORCE:
 
-$(OUTDIR)/%.3mf: %.scad $(EXPORT) FORCE | $(OUTDIR)
+$(OUTDIR)/%.3mf: %.scad $(EXPORT) $(SLICE) FORCE | $(OUTDIR)
 	$(EXPORT) $< $@ --openscad $(OPENSCAD) $(if $(call part,$*),-D part=$(call part,$*))
+	$(if $(filter 1,$(CHECK)),$(SLICE) $@ --scad $<)
 
 # Only created when OUTDIR is somewhere other than here.
 $(OUTDIR):

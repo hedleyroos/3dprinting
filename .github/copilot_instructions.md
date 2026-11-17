@@ -96,3 +96,34 @@ $fs = 0.4; // Minimum facet edge length (mm) — matched to a 0.4 mm nozzle
 - Local `$fn` overrides are allowed on specific features where a fixed polygon
   count is intentional (e.g. `cylinder($fn=6)` for a hexagon, `sphere($fn=24)`
   for a tiny rounding detail, or `$fn=24` on an M3 clearance hole).
+
+## Slicer check (OrcaSlicer)
+
+**Every model must slice cleanly in OrcaSlicer with its declared settings.** A face-angle check
+is not enough: Orca also catches regions that start in mid-air over a void, cantilevers, and parts
+that don't fit the printer, all of which a model can pass a 45° overhang check and still have.
+
+- **Declare the print settings in the model.** Each `.scad` header carries one or more
+  `// ORCA:` lines with shell-style `key=value` words, next to its printing notes:
+
+  ```openscad
+  // ORCA: printer="Qidi Q2 0.4 nozzle @Q2 0.4" process="0.20mm Standard @Qidi Q2"
+  // ORCA: filament="SUNLU PLA+ 2.0 @Q2 0.4" brim_type=no_brim
+  // ORCA: note="two-colour labels: filament change at layer 160.2 mm"
+  ```
+
+  `printer`, `process` and `filament` are preset names exactly as in Orca's dropdowns (the
+  user presets are in `slicer/orca_q2_presets/`). Any other key is an Orca setting overridden on
+  top of them, and the sliced G-code is checked to show it took. `note=` is printed with the
+  settings. Leaving a key out gives the everyday default (PLA, `0.20mm Standard`).
+- **Every export runs the check.** Each Makefile rule that writes a 3MF runs
+  `orca_check.py <3mf> --scad <scad>` right after the export (see the root `Makefile`). It
+  prints the presets, the estimated print time and filament, and Orca's verdict. Any Orca
+  warning or failure fails the export, and the 3MF is deleted. A new Makefile must do the same.
+  `CHECK=0` skips the check for a quick export; `make -j4` slices several models at once.
+- **A model isn't done until it passes.** Fix the geometry rather than switching supports on,
+  unless the design needs them; then say so with `enable_support=1` on the `ORCA:` line. A
+  warning that is genuinely fine (e.g. a bridge the printer handles) can be accepted with
+  `accept="<part of the warning text>"`, with a comment on the line above saying why.
+- **Report the estimate** (time and filament from the check) when presenting a model or a
+  change to one.

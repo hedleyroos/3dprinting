@@ -14,6 +14,11 @@
 #   * every export ALWAYS re-runs — a skipped export means printing
 #     yesterday's geometry (or yesterday's label text);
 #   * the object is named in the 3MF (make_separate_3mf.py);
+#   * every 3MF is sliced by OrcaSlicer (../orca_check.py), which prints
+#     the presets, time and filament, and fails the export (deleting the
+#     3MF) on any slicer warning. The presets are the `// ORCA:` lines in
+#     medicine_tray.scad. CHECK=0 skips it; `make -j4 all hex` slices
+#     four bins at a time;
 #   * 3MFs are gitignored repo-wide. If you saved a slicer project over
 #     one of these names, build elsewhere: make OUTDIR=/tmp/bins
 #
@@ -26,6 +31,8 @@
 
 OPENSCAD ?= openscad
 EXPORT   := ../make_separate_3mf.py
+SLICE    := ../orca_check.py
+CHECK    ?= 1
 SCAD     := medicine_tray.scad
 OUTDIR   ?= .
 RENDERS  := renders
@@ -60,12 +67,14 @@ FORCE:
 
 # (make picks the rule with the shorter stem, so bin_1_hex.3mf uses the
 # second rule, with stem bin_1)
-$(OUTDIR)/%.3mf: $(SCAD) $(EXPORT) FORCE | $(OUTDIR)
+$(OUTDIR)/%.3mf: $(SCAD) $(EXPORT) $(SLICE) FORCE | $(OUTDIR)
 	$(EXPORT) $(SCAD) $@ --openscad $(OPENSCAD) -D part=$* --names "tray $(subst _, ,$*)"
+	$(if $(filter 1,$(CHECK)),$(SLICE) $@ --scad $(SCAD))
 
-$(OUTDIR)/%_hex.3mf: $(SCAD) $(EXPORT) FORCE | $(OUTDIR)
+$(OUTDIR)/%_hex.3mf: $(SCAD) $(EXPORT) $(SLICE) FORCE | $(OUTDIR)
 	$(EXPORT) $(SCAD) $@ --openscad $(OPENSCAD) -D part=$* -D wall_style=hex \
 	    --names "tray $(subst _, ,$*) hex"
+	$(if $(filter 1,$(CHECK)),$(SLICE) $@ --scad $(SCAD))
 
 $(OUTDIR):
 	mkdir -p $@

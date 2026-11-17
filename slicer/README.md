@@ -54,6 +54,24 @@ a backup folder outside the repo.
 4. **Re-export a backup:** **File → Export → Export Preset Bundle**. The bundle's printer preset contains
    the network address, so leave that file out of git.
 
+## Command-line slicing (`orca_check.py`)
+
+Every `make` export is sliced by `../orca_check.py`, which reads the model's `// ORCA:` lines for
+its presets (see `.github/copilot_instructions.md`) and prints the time, filament and any Orca
+warning. It runs the same OrcaSlicer build as the GUI, and handles the CLI's quirks:
+
+- **The CLI ignores `inherits`**, so it fills every key a preset doesn't set itself with a
+  default, and the estimates come out badly wrong. The script merges each preset with its whole
+  inherits chain first, from Orca's live config (`~/.config/OrcaSlicer/`), falling back to this
+  folder.
+- **It rejects a user printer** (`Qidi Q2 0.4 nozzle @Q2 0.4`) because the stock presets only
+  list `Qidi Q2 0.4 nozzle` as compatible, so the script lists the printer by name on the
+  flattened copies.
+- **It writes a log file into the current folder**, so the script runs it in a temporary one.
+
+The CLI's bed type defaults to the cool plate, so the G-code's bed temperature isn't what you'd
+print with; time and filament don't depend on it.
+
 ## Notes
 
 - **Retraction from `- Slower` was not carried over.** That printer was the only place with longer
