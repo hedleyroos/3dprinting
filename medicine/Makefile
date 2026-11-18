@@ -40,17 +40,20 @@ RENDERS  := renders
 BINS     := bin_1 bin_2 bin_3 bin_4 bin_5 bin_6
 HEX_BINS := $(addsuffix _hex,$(BINS))
 VIEWS    := assembly assembly_pulled assembly_exploded
-PNGS     := $(addprefix $(RENDERS)/,$(addsuffix .png,$(VIEWS) bin_1 bin_2 joint_test \
+PNGS     := $(addprefix $(RENDERS)/,$(addsuffix .png,$(VIEWS) bin_1 bin_2 bin_4 joint_test \
                 assembly_pulled_hex bin_1_hex))
 
 # Camera per render: eye x,y,z,centre x,y,z. Assemblies are previews
 # (colours + the % shelf ghost); bins and the joint test are full
-# renders. bin_2 is seen from behind-left, its two open sides.
+# renders. bin_2 is seen from behind-left, its two open sides; bin_4,
+# laid out the same, from the same eye, shows the full-height end
+# columns where bin 2 (printed first) has banded posts.
 CAM_assembly          := 430,-780,680,0,250,70
 CAM_assembly_pulled   := 430,-1020,680,0,20,70
 CAM_assembly_exploded := 650,-950,820,0,280,170
 CAM_bin_1             := 330,-460,420,0,0,70
 CAM_bin_2             := -360,330,360,0,0,70
+CAM_bin_4             := $(CAM_bin_2)
 CAM_joint_test        := 70,-75,65,0,0,6
 
 .PHONY: all hex joint_test renders list clean FORCE $(BINS) $(HEX_BINS)

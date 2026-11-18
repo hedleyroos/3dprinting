@@ -27,14 +27,24 @@
 //     Rails, keys and sockets are all vertical, so a bin goes in by
 //     lowering it into place from above. Once in, it can move only
 //     straight up again; a drop of CA on each floor key stops that.
-//     Rails and posts run only in two BANDS, joint_band high, at the
-//     wall foot and under the wall top: small dovetail outlines on
-//     every layer cost far more print time than their plastic, and
-//     the bands save about 4.5 h on the solid tray over full-height
-//     joints (PLAN.md has the sliced numbers).
-//     A raised band grows out of its wall on a 42° chamfer. A post's
-//     far cheek (across the socket from its wall) has only the post's
-//     back to grow from, so it gets a second 42° slope of its own.
+//     Rails run only in two BANDS, joint_band high, at the wall foot
+//     and under the wall top: small dovetail outlines on every layer
+//     cost far more print time than their plastic (PLAN.md has the
+//     sliced numbers).
+//   * END COLUMNS: a post sits where a wall ends free (it stops
+//     against the neighbour's wall, with no wall of its own bin to
+//     hold it). A lone 1.6 mm wall end flexes under the nozzle as it
+//     prints tall, and the layers drift out of line; a corner, where
+//     two walls meet, doesn't. So the posts run the FULL HEIGHT, as a
+//     column that holds the end steady. The socket stays open all the
+//     way up, so the neighbour's rails pass through it as the bin is
+//     lowered in.
+//     Bins 1 and 2 were printed before this, with posts banded like
+//     the rails (banded_bins), and are modelled as printed. A banded
+//     post grows out of its wall on a 42° chamfer, as does every
+//     raised rail band. Its far cheek (across the socket from its
+//     wall) has only the post's back to grow from, so it gets a second
+//     42° slope of its own.
 //   * Walls are SOLID by default (wall_style = "solid").
 //     wall_style = "hex" cuts a hex mesh into every wall instead,
 //     leaving solid rails top and bottom, a solid band at each wall
@@ -138,8 +148,10 @@ wall_rail_t = 6;       // hex: least solid band under the wall top (the grip edg
 wall_post   = 12;      // hex: least solid band at each end of a wall (carries the joints)
 
 /* [Joints] */
-joint_band    = 30;   // rails and posts run this high at the wall foot and again
-                      // under the wall top; 0 = full height (slower to print)
+joint_band    = 30;   // rails run this high at the wall foot and again under
+                      // the wall top; 0 = full height (slower to print)
+banded_bins   = [1, 2]; // printed before end columns: their posts stay banded
+                        // like the rails, as printed; every other post runs full height
 joint_clear   = 0.25; // fit clearance per side in every socket
 rail_neck     = 3;    // wall rail: width where it leaves the wall
 rail_head     = 6;    // wall rail: width at its tip
@@ -283,11 +295,15 @@ function bin_joints(j) =
                    spread(b[2], b[3])]]
                : []);
 
-// Heights [z0, z1] where rails and posts run in a joint whose open
-// bin is h high. The owner may be taller (a tall bin); its rails
+// Heights [z0, z1] where rails (and banded posts) run in a joint
+// whose open bin is h high. The owner may be taller (a tall bin); its rails
 // stop at the open bin's height, where its posts do.
 function bands(h) = joint_band <= 0 ? [[0, h]] : [[0, joint_band], [h - joint_band, h]];
 function joint_h(J) = bin_h(J[1]);
+// Where the posts of open bin i run, on a joint h high: the full
+// height (an end column), or banded like the rails on banded_bins.
+function is_banded(i) = len(search(i + 1, banded_bins)) > 0;
+function post_bands(i, h) = is_banded(i) ? bands(h) : [[0, h]];
 // Chamfers under raised bands rise 1.1 x their overhang (42° from
 // vertical), so they stay inside the 45° rule.
 post_cham = 1.1 * (post_w - wall_t);
@@ -339,6 +355,8 @@ assert(tray_h <= shelf_h, "tray taller than the shelf");
 assert(tray_h <= bed_z, "bin taller than the printer's Z");
 for (t = tall_bins)
     assert(t >= 1 && t <= n_bins && t == floor(t), str("tall_bins: no bin ", t));
+for (t = banded_bins)
+    assert(t >= 1 && t <= n_bins && t == floor(t), str("banded_bins: no bin ", t));
 // A bin taller than the neighbour whose wall closes its open side
 // would be open above that wall.
 for (J = joints)
@@ -365,7 +383,7 @@ assert(socket_m >= 1.2, "socket side thinner than three lines");
 assert(joint_clear >= 0.1 && joint_clear <= 0.5, "joint_clear outside 0.1 .. 0.5");
 assert(rail_lead < min_h / 4 && rail_taper < rail_neck / 2, "rail lead-in too big");
 assert(joint_band == 0 || joint_band >= max(15, floor_t + rail_lead + 5), "joint_band too short to hold");
-// lowering a bin, its top post (with its chamfer) must pass above the
+// lowering a bin, its top post (with its chamfer; banded bins) must pass above the
 // owner's foot rails: the bands must not reach each other
 assert(joint_band == 0 || min_h - joint_band - max(post_cham + post_cham_x, rail_cham) > joint_band + 5,
        "joint bands overlap; use joint_band = 0 for full-height joints");
@@ -384,7 +402,7 @@ echo(str("tray ", tray_w, " x ", tray_d, ", bins 1-6 ", bin_hs, " high (+", text
 echo(str("door gap each side ", side_clear, "; depth spare ", shelf_d - tray_d,
          "; headroom above walls ", shelf_h - tray_h));
 echo(str("bins on the bed incl. keys: ", [for (i = [0 : n_bins - 1]) bin_ext(i)]));
-echo(str("joints: ", len(joints), " open sides, rails and posts at z ",
+echo(str("joints: ", len(joints), " open sides, rails at z ",
          [for (h = bin_hs) if (len([for (J = joints) if (joint_h(J) == h) 1]) > 0) bands(h)][0],
          [for (J = joints) if (joint_h(J) != wall_h) 1] == [] ? ""
              : str(" (", bands(tall_h), " where a tall bin is the open one)"), ", ",
@@ -392,6 +410,9 @@ echo(str("joints: ", len(joints), " open sides, rails and posts at z ",
          len([for (J = joints) each J[5]]), " floor keys; post ", post_w, " x ", post_d,
          "; play pulled apart: rail ", play(rail_neck, rail_head, rail_d), ", key ",
          play(key_neck, key_head, key_d)));
+echo(str("posts at free wall ends: full-height end columns on bins ",
+         [for (i = [0 : n_bins - 1]) if (!is_banded(i) && len([for (J = joints) if (J[1] == i) 1]) > 0) i + 1],
+         ", banded on bins ", [for (i = [0 : n_bins - 1]) if (is_banded(i)) i + 1], " (printed)"));
 echo(str("label tab ", tab_w, " x ", ledge_d, ", gusset leaves the wall at z = ",
          [for (h = bin_hs) tab_bot(h)],
          "; text sizes ", [for (s = labels) label_size(s)]));
@@ -580,7 +601,7 @@ module bin_body(i) {
         }
     for (J = joints) if (J[1] == i)                // open bin: posts round the sockets
         joint_frame(J[2], J[3])
-            for (r = J[4], z = bands(joint_h(J))) translate([0, r[0], 0]) post_band(z[0], z[1], r[1]);
+            for (r = J[4], z = post_bands(i, joint_h(J))) translate([0, r[0], 0]) post_band(z[0], z[1], r[1]);
 }
 
 module bin(i) {
@@ -592,7 +613,7 @@ module bin(i) {
                     // full height: it only meets post and floor
                     for (r = J[4]) translate([0, r[0], 0]) {
                         socket_cut(bin_h(i)) rail_2d();
-                        for (z = bands(joint_h(J))) if (z[0] > 0) post_relief(z[0], r[1]);
+                        for (z = post_bands(i, joint_h(J))) if (z[0] > 0) post_relief(z[0], r[1]);
                     }
                     for (s = J[5]) translate([0, s, 0]) socket_cut(floor_t) key_2d();
                 }
