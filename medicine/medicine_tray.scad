@@ -50,6 +50,12 @@
 //     with the wall top, held up by a 45° gusset, with the
 //     category name raised on top. Read from above when the tray
 //     is pulled out; the front row reads from the cupboard door.
+//   * TALL BIN: bin 5 (back-left, "Braces & Supports") has walls
+//     tall_h high instead of wall_h, for bulky things like elbow
+//     braces. It owns all four of its walls, so it rises on its own:
+//     its neighbours stay wall_h, and the rails on its walls stop at
+//     their height. A bin can't be taller than a bin whose wall
+//     closes its open side (bin 6 could only be tall with bin 5).
 //
 // COORDINATES (mm)
 //   X across the width; x = 0 is the tray centre (centred in the
@@ -65,12 +71,13 @@
 // no supports
 //   Printer: Qidi Q2 (270 x 270 bed, 256 mm Z). One bin per plate,
 //   floor down, as modelled. The label text is the only thing above
-//   z = wall_h, so a filament change at that height prints it in
-//   a second colour. No brim: the automatic one wraps the floor
-//   keys and fills the key sockets, and the floor holds on its own.
+//   a bin's wall top, so a filament change there (layer 160.2 mm;
+//   220.2 mm on the tall bin 5) prints it in a second colour. No
+//   brim: the automatic one wraps the floor keys and fills the key
+//   sockets, and the floor holds on its own.
 // ORCA: printer="Qidi Q2 0.4 nozzle @Q2 0.4" process="0.20mm Standard @Qidi Q2"
 // ORCA: filament="SUNLU PLA+ 2.0 @Q2 0.4" brim_type=no_brim
-// ORCA: note="two-colour labels: filament change at layer 160.2 mm"
+// ORCA: note="two-colour labels: filament change at layer 160.2 mm (tall bin 5: 220.2 mm)"
 //
 // ASSEMBLY
 //   First print part = "joint_test" (two 20 mm pieces): the rail
@@ -93,12 +100,12 @@ pull_dist    = 250;  // assembly_pulled: how far the tray is slid out
 explode_step = 45;   // assembly_exploded: height added per assembly step
 
 /* [Labels] */
-label_1 = "Cold & Flu";    // front left
-label_2 = "Pain & Fever";  // front right
-label_3 = "Tummy";         // middle left
-label_4 = "Allergy";       // middle right
-label_5 = "First Aid";     // back left
-label_6 = "Vitamins";      // back right
+label_1 = "Pain & Muscle";      // front left
+label_2 = "Cold & Flu";         // front right (allergy too)
+label_3 = "First Aid";          // middle left
+label_4 = "Skin";               // middle right
+label_5 = "Braces & Supports";  // back left, the tall bin
+label_6 = "Tummy & Sleep";      // back right
 
 /* [Shelf] */
 opening_w  = 360;  // clear slide-out width (door / hinges)
@@ -117,6 +124,8 @@ tray_d  = 560;     // overall depth, front face to back face (<= shelf_d)
 cols    = 2;       // compartments across (fixed design: 2)
 rows    = 3;       // compartments front to back (fixed design: 3)
 wall_h  = 160;     // overall height, underside to wall top
+tall_h  = 220;     // the tall bins' height (braces and supports)
+tall_bins = [5];   // bins (1..6) built tall_h high; [] for none
 wall_t  = 1.6;     // every wall, outer and dividing; each is printed once
 floor_t = 2;
 
@@ -190,9 +199,17 @@ p_x     = in_w + wall_t;                           // wall pitch across
 p_y     = in_d + wall_t;                           // wall pitch front to back
 hex_p   = hex_af + hex_strut;                      // floor hole pitch across flats
 ledge_d = wall_t + tab_d;                          // flat top: wall top + ledge
-tab_z0  = wall_h - tab_t - ledge_d;                // gusset foot on the wall's outer plane
-tab_bot = tab_z0 + wall_t;                         // where the gusset leaves the inner face
-tray_h  = wall_h + text_h;
+
+// A bin's height, underside to wall top: tall_h for tall_bins.
+function bin_h(i) = len(search(i + 1, tall_bins)) > 0 ? tall_h : wall_h;
+bin_hs  = [for (i = [0 : n_bins - 1]) bin_h(i)];
+min_h   = min(bin_hs);
+tray_h  = max(bin_hs) + text_h;
+
+// Label tab on a wall h high: the gusset's foot on the wall's outer
+// plane, and where it leaves the inner face.
+function tab_z0(h)  = h - tab_t - ledge_d;
+function tab_bot(h) = tab_z0(h) + wall_t;
 
 // Dovetails. A socket is its dovetail grown by joint_clear all round;
 // at the tip, the splayed flank adds clear * (tan + sec) of the flank
@@ -212,8 +229,8 @@ key_sw  = 2 * sock_hw(key_neck, key_head, key_d);                   // key socke
 // other column is dropped by half a hole. The middle column is
 // centred on the wall and on the band between the rails, so every
 // wall's mesh is mirror-symmetric.
-wz0     = wall_rail_b;
-wz1     = wall_h - wall_rail_t;
+wz0     = wall_rail_b;                             // hole band: bottom, and
+function wz1(h) = h - wall_rail_t;                 // top on a wall h high
 w_p     = wall_hex + wall_strut;                   // hole pitch up a column
 w_dx    = w_p * cos(30);                           // column pitch along the wall
 w_hw    = wall_hex / sqrt(3);                      // hole half-width, corner to corner
@@ -266,8 +283,11 @@ function bin_joints(j) =
                    spread(b[2], b[3])]]
                : []);
 
-// Heights [z0, z1] where rails and posts run.
-bands = joint_band <= 0 ? [[0, wall_h]] : [[0, joint_band], [wall_h - joint_band, wall_h]];
+// Heights [z0, z1] where rails and posts run in a joint whose open
+// bin is h high. The owner may be taller (a tall bin); its rails
+// stop at the open bin's height, where its posts do.
+function bands(h) = joint_band <= 0 ? [[0, h]] : [[0, joint_band], [h - joint_band, h]];
+function joint_h(J) = bin_h(J[1]);
 // Chamfers under raised bands rise 1.1 x their overhang (42° from
 // vertical), so they stay inside the 45° rule.
 post_cham = 1.1 * (post_w - wall_t);
@@ -288,20 +308,20 @@ function bin_ext(i) =
     [b[1] - b[0] + (len(search(0, own)) > 0 ? stick : 0),
      b[3] - b[2] + (len(search(-90, own)) > 0 ? stick : 0)];
 
-// Hole centres on a wall of length L (u along the wall from its
-// start, v = z), symmetric about L/2. Only whole holes: one clipped
-// by a rail would get a roof up to twice as wide to bridge. Holes
-// stay wall_post clear of each end, and on a front wall clear of the
-// label tab and its gusset (centred at tab_u).
-function wall_holes(L, tab_u) =
+// Hole centres on a wall of length L and height h (u along the wall
+// from its start, v = z), symmetric about L/2. Only whole holes: one
+// clipped by a rail would get a roof up to twice as wide to bridge.
+// Holes stay wall_post clear of each end, and on a front wall clear
+// of the label tab and its gusset (centred at tab_u).
+function wall_holes(L, tab_u, h) =
     let (kx0 = tab_u - tab_w / 2 - wall_strut, kx1 = tab_u + tab_w / 2 + wall_strut,
-         kz0 = tab_bot - wall_strut,
-         K = ceil(L / (2 * w_dx)) + 1, J = ceil((wz1 - wz0) / (2 * w_p)) + 1)
+         kz0 = tab_bot(h) - wall_strut, z1 = wz1(h),
+         K = ceil(L / (2 * w_dx)) + 1, J = ceil((z1 - wz0) / (2 * w_p)) + 1)
     [for (k = [-K : K], j = [-J : J])
         let (u = L / 2 + k * w_dx,
-             v = (wz0 + wz1) / 2 + (j + (abs(k) % 2) / 2) * w_p)
+             v = (wz0 + z1) / 2 + (j + (abs(k) % 2) / 2) * w_p)
         if (u - w_hw >= wall_post - EPS && u + w_hw <= L - wall_post + EPS
-            && v - w_hh >= wz0 - EPS && v + w_hh <= wz1 + EPS
+            && v - w_hh >= wz0 - EPS && v + w_hh <= z1 + EPS
             && !(tab_u >= 0 && u + w_hw > kx0 && u - w_hw < kx1 && v + w_hh > kz0))
             [u, v]];
 
@@ -317,12 +337,19 @@ assert(len(labels) == n_bins, "one label per compartment");
 assert(tray_d <= shelf_d, str("tray depth ", tray_d, " > shelf depth ", shelf_d));
 assert(tray_h <= shelf_h, "tray taller than the shelf");
 assert(tray_h <= bed_z, "bin taller than the printer's Z");
+for (t = tall_bins)
+    assert(t >= 1 && t <= n_bins && t == floor(t), str("tall_bins: no bin ", t));
+// A bin taller than the neighbour whose wall closes its open side
+// would be open above that wall.
+for (J = joints)
+    assert(bin_h(J[1]) <= bin_h(J[0]),
+           str("bin ", J[1] + 1, " is taller than bin ", J[0] + 1, ", whose wall closes its side"));
 for (i = [0 : n_bins - 1])
     let (e = bin_ext(i))
         assert(e[0] <= bed_x - 2 * bed_margin && e[1] <= bed_y - 2 * bed_margin,
                str("bin ", i + 1, " is ", e[0], " x ", e[1], " with its keys: does not fit the bed with margin"));
 assert(tab_w <= in_w - 20, "label tab leaves under 10 mm of wall top each side");
-assert(tab_bot >= floor_t + 20, "label tab gusset reaches too far down the wall");
+assert(tab_bot(min_h) >= floor_t + 20, "label tab gusset reaches too far down the wall");
 assert(text_size * 1.3 <= ledge_d - 2, "text_size too big for the ledge depth");
 assert(floor_border >= hex_strut, "floor border thinner than a strut");
 assert(hex_af > 0 && hex_strut >= 1.5, "mesh strut too thin");
@@ -330,17 +357,17 @@ assert(wall_style == "solid" || wall_style == "hex", "wall_style is solid or hex
 assert(wall_strut >= 1.5, "wall mesh strut too thin");
 assert(wall_post >= post_w + 1, str("wall_post must cover a joint post (", post_w, " mm) plus 1 mm"));
 assert(wall_rail_b >= floor_t + 2, "bottom wall rail must clear the floor by 2 mm");
-assert(wz1 - wz0 >= 2 * w_p, "rails leave no room for two rows of wall hexes");
+assert(wz1(min_h) - wz0 >= 2 * w_p, "rails leave no room for two rows of wall hexes");
 assert(w_roof <= 10, str("wall hex roofs bridge ", w_roof, " mm; keep wall_hex under 17"));
 assert(rail_head > rail_neck && key_head > key_neck, "a dovetail must be wider at its tip than its neck");
 assert(rail_neck >= 2.5 && key_neck >= 4, "dovetail neck too thin");
 assert(socket_m >= 1.2, "socket side thinner than three lines");
 assert(joint_clear >= 0.1 && joint_clear <= 0.5, "joint_clear outside 0.1 .. 0.5");
-assert(rail_lead < wall_h / 4 && rail_taper < rail_neck / 2, "rail lead-in too big");
+assert(rail_lead < min_h / 4 && rail_taper < rail_neck / 2, "rail lead-in too big");
 assert(joint_band == 0 || joint_band >= max(15, floor_t + rail_lead + 5), "joint_band too short to hold");
 // lowering a bin, its top post (with its chamfer) must pass above the
 // owner's foot rails: the bands must not reach each other
-assert(joint_band == 0 || wall_h - joint_band - max(post_cham + post_cham_x, rail_cham) > joint_band + 5,
+assert(joint_band == 0 || min_h - joint_band - max(post_cham + post_cham_x, rail_cham) > joint_band + 5,
        "joint bands overlap; use joint_band = 0 for full-height joints");
 assert(key_band >= key_d + joint_clear + 2, "key_band leaves under 2 mm of floor behind a key socket");
 assert(post_d <= key_band, "joint post sticks out past the floor's solid band");
@@ -352,22 +379,26 @@ for (s = labels)
            str("label \"", s, "\" is too long for the tab (would print at ",
                label_size(s), " mm); shorten it or widen tab_w"));
 
-echo(str("tray ", tray_w, " x ", tray_d, " x ", wall_h, " (+", text_h, " text); compartment interior ",
-         in_w, " x ", in_d));
+echo(str("tray ", tray_w, " x ", tray_d, ", bins 1-6 ", bin_hs, " high (+", text_h,
+         " text); compartment interior ", in_w, " x ", in_d));
 echo(str("door gap each side ", side_clear, "; depth spare ", shelf_d - tray_d,
          "; headroom above walls ", shelf_h - tray_h));
 echo(str("bins on the bed incl. keys: ", [for (i = [0 : n_bins - 1]) bin_ext(i)]));
-echo(str("joints: ", len(joints), " open sides, rails and posts at z ", bands, ", ",
+echo(str("joints: ", len(joints), " open sides, rails and posts at z ",
+         [for (h = bin_hs) if (len([for (J = joints) if (joint_h(J) == h) 1]) > 0) bands(h)][0],
+         [for (J = joints) if (joint_h(J) != wall_h) 1] == [] ? ""
+             : str(" (", bands(tall_h), " where a tall bin is the open one)"), ", ",
          len([for (J = joints) each J[4]]), " rails, ",
          len([for (J = joints) each J[5]]), " floor keys; post ", post_w, " x ", post_d,
          "; play pulled apart: rail ", play(rail_neck, rail_head, rail_d), ", key ",
          play(key_neck, key_head, key_d)));
-echo(str("label tab ", tab_w, " x ", ledge_d, ", gusset leaves the wall at z = ", tab_bot,
+echo(str("label tab ", tab_w, " x ", ledge_d, ", gusset leaves the wall at z = ",
+         [for (h = bin_hs) tab_bot(h)],
          "; text sizes ", [for (s = labels) label_size(s)]));
 if (wall_style == "hex")
     echo(str("wall hexes ", 2 * w_hw, " x ", wall_hex, " (regular), roofs bridge ", w_roof,
              "; holes per bin: ",
-             [for (i = [0 : n_bins - 1]) len([for (w = bin_walls(i)) each wall_holes(w[2], w[4])])]));
+             [for (i = [0 : n_bins - 1]) len([for (w = bin_walls(i)) each wall_holes(w[2], w[4], bin_h(i))])]));
 
 // ---------------- geometry ----------------
 
@@ -408,24 +439,24 @@ module wall_hole_2d() {
     circle(r = w_hw, $fn = 6);   // corners at +-u, flats top and bottom
 }
 
-module wall_holes_2d(L, tab_u) {
-    for (c = wall_holes(L, tab_u)) translate(c) wall_hole_2d();
+module wall_holes_2d(L, tab_u, h) {
+    for (c = wall_holes(L, tab_u, h)) translate(c) wall_hole_2d();
 }
 
-// w = [x, y, length, along, tab_u], from bin_walls()
-module wall(w) {
+// w = [x, y, length, along, tab_u], from bin_walls(); h high
+module wall(w, h) {
     difference() {
         translate([w[0], w[1], 0])
-            cube(w[3] == 0 ? [w[2], wall_t, wall_h] : [wall_t, w[2], wall_h]);
+            cube(w[3] == 0 ? [w[2], wall_t, h] : [wall_t, w[2], h]);
         if (wall_style == "hex") {
             if (w[3] == 0)
                 translate([w[0], w[1] + wall_t + EPS, 0])
                     rotate([90, 0, 0])         // 2D x -> X, 2D y -> Z, extrude -> -Y
-                        linear_extrude(wall_t + 2 * EPS) wall_holes_2d(w[2], w[4]);
+                        linear_extrude(wall_t + 2 * EPS) wall_holes_2d(w[2], w[4], h);
             else
                 translate([w[0] - EPS, w[1], 0])
                     rotate([90, 0, 90])        // 2D x -> Y, 2D y -> Z, extrude -> X
-                        linear_extrude(wall_t + 2 * EPS) wall_holes_2d(w[2], w[4]);
+                        linear_extrude(wall_t + 2 * EPS) wall_holes_2d(w[2], w[4], h);
         }
     }
 }
@@ -434,16 +465,17 @@ module wall(w) {
 // starts on the wall's outer plane, so it is buried in the wall
 // until it emerges from the inner face at z = tab_bot.
 module label_tab(i) {
+    h = bin_h(i);
     translate([comp_cx(i) - tab_w / 2, bin_box(i)[2], 0])
         rotate([90, 0, 90])            // 2D x -> Y, 2D y -> Z, extrude -> X
             linear_extrude(tab_w)
-                polygon([[0, tab_z0], [ledge_d, tab_z0 + ledge_d],
-                         [ledge_d, wall_h], [0, wall_h]]);
+                polygon([[0, tab_z0(h)], [ledge_d, tab_z0(h) + ledge_d],
+                         [ledge_d, h], [0, h]]);
 }
 
 module label_text(i) {
     s = labels[i];
-    translate([comp_cx(i), bin_box(i)[2] + ledge_d / 2, wall_h - EPS])
+    translate([comp_cx(i), bin_box(i)[2] + ledge_d / 2, bin_h(i) - EPS])
         linear_extrude(text_h + EPS)
             intersection() {
                 // never past the ledge edge: text there would hang in air
@@ -538,17 +570,17 @@ module post_relief(z0, side) {
 
 // ---- bins ----
 module bin_body(i) {
-    for (w = bin_walls(i)) wall(w);
+    for (w = bin_walls(i)) wall(w, bin_h(i));
     linear_extrude(floor_t) floor_2d(i);
     label_tab(i);
     for (J = joints) if (J[0] == i)                // owner: rails and keys
         joint_frame(J[2], J[3]) {
-            for (r = J[4], z = bands) translate([0, r[0], 0]) rail_band(z[0], z[1]);
+            for (r = J[4], z = bands(joint_h(J))) translate([0, r[0], 0]) rail_band(z[0], z[1]);
             for (s = J[5]) translate([0, s, 0]) linear_extrude(floor_t) key_2d();
         }
     for (J = joints) if (J[1] == i)                // open bin: posts round the sockets
         joint_frame(J[2], J[3])
-            for (r = J[4], z = bands) translate([0, r[0], 0]) post_band(z[0], z[1], r[1]);
+            for (r = J[4], z = bands(joint_h(J))) translate([0, r[0], 0]) post_band(z[0], z[1], r[1]);
 }
 
 module bin(i) {
@@ -559,8 +591,8 @@ module bin(i) {
                 joint_frame(J[2], J[3]) {
                     // full height: it only meets post and floor
                     for (r = J[4]) translate([0, r[0], 0]) {
-                        socket_cut(wall_h) rail_2d();
-                        for (z = bands) if (z[0] > 0) post_relief(z[0], r[1]);
+                        socket_cut(bin_h(i)) rail_2d();
+                        for (z = bands(joint_h(J))) if (z[0] > 0) post_relief(z[0], r[1]);
                     }
                     for (s = J[5]) translate([0, s, 0]) socket_cut(floor_t) key_2d();
                 }
