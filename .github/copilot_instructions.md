@@ -44,6 +44,32 @@ Consider the stresses a printed item may need to withstand (shear, tensile, comp
 model accordingly. We must however try and avoid supports when printing if possible. If the stresses are
 such that a single orientation will not suffice, then split the model into components that can be assembled.
 
+## Columns at free wall ends
+
+**A thin wall whose vertical edge ends free while it prints gets a column along that edge, the full height
+of the wall.** Design it in from the start, along with the wall.
+
+The reason is how a tall thin wall prints. It is held only at its foot and wherever it meets another wall.
+Where two walls meet, each braces the other edge-on, so a corner doesn't move. A free end has nothing but
+the thin wall behind it. As the wall grows, that end flexes away from the nozzle, each layer lands slightly off
+the one below, and the edge drifts out of line toward the top. This was seen on the medicine tray: 1.6 mm walls
+160 mm high flexed at their free ends, while their corners stayed true.
+
+- **"Free" means free on the print bed, not in use.** A wall left open to lock onto a neighbouring part,
+  which is common in models split to fit the bed, is a free end while it prints, even though it is closed
+  once assembled.
+- **Make the column deep across the wall.** Depth across the wall resists the flex, and stiffness grows with
+  the cube of that depth. About 10 mm across, i.e. the wall plus about 8 mm standing proud, works. The
+  medicine tray uses a 10 × 4.85 mm post.
+- **Run it the full height, from the floor to the top.** A column that stops partway leaves the wall above
+  it free again. Features that are banded to save time, such as joint rails, can stay banded, but the column
+  can't.
+- **Grow it from the bed or floor**, so it needs no support.
+- **If the end carries a joint, the joint's post is the column.** Keep any channel a mating part slides
+  through open for the full height, so the parts still assemble.
+- **It is cheap.** On the medicine tray, two columns cost about 30 min and 5 g on a 4–6 h bin.
+- **Check:** in the print orientation, every vertical wall edge either meets another wall or has a column.
+
 ## Reinforcing collars for tube sockets
 
 **Any printed socket that grips tubing and carries real load gets a separate slide-on collar,
