@@ -38,9 +38,12 @@ Material: **SUNLU PLA**, printed with the normal profile (user, 2026-11-17). Pri
 7. **Wall hexes match the floor's:** regular 14 mm hexes, never stretched to fit a wall. The first stretched
    ones (14 × 20.6 mm) looked elongated next to the floor.
 8. **Labels (2026-11-18)** come from photos of the user's actual medicine, not
-   placeholders. "Cold & Flu" was kept as it was. See *Compartments* below.
+   placeholders. "Cold & Flu" was kept as it was, on bin 1 (front-left). See *Compartments* below.
 9. **Braces get a tall bin at the back (2026-11-18):** elbow braces and other supports are bulky, so the
    back-left bin's walls are **220 mm** (the rest stay 160).
+10. **Bin 1 is already printed** (Cold & Flu, front-left; as of 2026-11-18). Don't change its label or
+    geometry, and keep every joint it's part of compatible with the printed one: its posts and floor sockets
+    toward bin 3, and the rails and keys on its centre wall that bin 2 locks onto.
 
 ## Design
 
@@ -108,7 +111,7 @@ unpacked. The most-used compartments are at the front.
 
 | | Left | Right |
 |---|---|---|
-| **Front** | 1 **Pain & Muscle** | 2 **Cold & Flu** |
+| **Front** | 1 **Cold & Flu** (printed) | 2 **Pain & Muscle** |
 | **Middle** | 3 **First Aid** | 4 **Skin** |
 | **Back** | 5 **Braces & Supports** (220 mm) | 6 **Tummy & Sleep** |
 
@@ -166,13 +169,13 @@ sliced on its own plate, as of 2026-11-18 (real labels, tall bin 5).
 
 | Bin | Walls owned | Solid | Hex |
 |---|---|---|---|
-| 1 Pain & Muscle | front, left, centre | 5 h 29 min, 206 g | 6 h 17 min, 124 g |
-| 2 Cold & Flu | front, right | 4 h 15 min, 148 g | 4 h 46 min, 96 g |
+| 1 Cold & Flu | front, left, centre | 5 h 28 min, 206 g | 6 h 16 min, 124 g |
+| 2 Pain & Muscle | front, right | 4 h 15 min, 148 g | 4 h 47 min, 96 g |
 | 3 First Aid | front, left, centre | 5 h 42 min, 209 g | 6 h 29 min, 126 g |
 | 4 Skin | front, right | 4 h 26 min, 150 g | 4 h 54 min, 97 g |
 | 5 Braces & Supports, 220 mm | all four | 8 h 19 min, 342 g | 9 h 32 min, 194 g |
 | 6 Tummy & Sleep | front, right, back | 5 h 26 min, 203 g | 6 h 13 min, 126 g |
-| **Tray** | | **33 h 37 min, 1,257 g** (432 m) | **38 h 11 min, 763 g** (262 m) |
+| **Tray** | | **33 h 36 min, 1,257 g** (432 m) | **38 h 11 min, 763 g** (262 m) |
 
 Plus `joint_test`: 15 min, 5 g. The tall bin costs 81 g and 1 h 40 min more than at 160 mm when solid
 (6 h 39 min, 261 g before), 40 g and 2 h more in hex.

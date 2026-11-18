@@ -100,8 +100,8 @@ pull_dist    = 250;  // assembly_pulled: how far the tray is slid out
 explode_step = 45;   // assembly_exploded: height added per assembly step
 
 /* [Labels] */
-label_1 = "Pain & Muscle";      // front left
-label_2 = "Cold & Flu";         // front right (allergy too)
+label_1 = "Cold & Flu";         // front left (allergy too); already printed
+label_2 = "Pain & Muscle";      // front right
 label_3 = "First Aid";          // middle left
 label_4 = "Skin";               // middle right
 label_5 = "Braces & Supports";  // back left, the tall bin
