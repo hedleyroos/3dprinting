@@ -94,6 +94,7 @@ PART_saw_guide_jig            := printplate
 PART_serpentine_egg_dispenser := exploded
 PART_single_egg_dispenser     := plate
 PART_socket_cover_solid       := exploded
+PART_vacuum_crevice_nozzle    := plate
 PART_wine_bottle_tray         := cushion
 PART_wineglass_cage           := print
 
