@@ -45,9 +45,9 @@ PNGS     := $(addprefix $(RENDERS)/,$(addsuffix .png,$(VIEWS) bin_1 bin_2 bin_4 
 
 # Camera per render: eye x,y,z,centre x,y,z. Assemblies are previews
 # (colours + the % shelf ghost); bins and the joint test are full
-# renders. bin_2 is seen from behind-left, its two open sides; bin_4,
-# laid out the same, from the same eye, shows the full-height end
-# columns where bin 2 (printed first) has banded posts.
+# renders. bin_2 is seen from behind-left, its two open sides with
+# their full-height end columns; bin_4, laid out the same, from the
+# same eye.
 CAM_assembly          := 430,-780,680,0,250,70
 CAM_assembly_pulled   := 430,-1020,680,0,20,70
 CAM_assembly_exploded := 650,-950,820,0,280,170

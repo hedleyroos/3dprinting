@@ -53,7 +53,8 @@ The reason is how a tall thin wall prints. It is held only at its foot and where
 Where two walls meet, each braces the other edge-on, so a corner doesn't move. A free end has nothing but
 the thin wall behind it. As the wall grows, that end flexes away from the nozzle, each layer lands slightly off
 the one below, and the edge drifts out of line toward the top. This was seen on the medicine tray: 1.6 mm walls
-160 mm high flexed at their free ends, while their corners stayed true.
+160 mm high flexed at their free ends, while their corners stayed true. The two bins printed without columns
+drifted so far that they didn't fit their neighbours and had to be reprinted.
 
 - **"Free" means free on the print bed, not in use.** A wall left open to lock onto a neighbouring part,
   which is common in models split to fit the bed, is a free end while it prints, even though it is closed

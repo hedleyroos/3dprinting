@@ -1,8 +1,8 @@
 # Plan: Medicine cupboard — one slide-out tray with 6 labelled compartments
 
-Revised 2026-11-18 (real labels from the user's medicine; back-left bin 220 mm tall for braces; end columns
-at free wall ends). Earlier:
-walls 160 mm, single walls with dovetail joints, regular wall hexes. Model: `medicine/medicine_tray.scad`.
+Revised 2026-11-19 (bins 1 and 2 reprinted with end columns). Earlier: real labels from the user's medicine,
+a 220 mm back-left bin for braces and end columns at free wall ends (2026-11-18); walls 160 mm, single walls
+with dovetail joints, regular wall hexes. Model: `medicine/medicine_tray.scad`.
 Build: in `medicine/`, `make` gives `bin_1.3mf` … `bin_6.3mf` (solid walls), `make hex` gives
 `bin_1_hex.3mf` … `bin_6_hex.3mf` (hex-mesh walls), `make joint_test` gives `joint_test.3mf`, and
 `make renders` gives `renders/*.png`. Each 3MF is sliced by OrcaSlicer as it's exported, with the presets
@@ -42,18 +42,17 @@ Material: **SUNLU PLA**, printed with the normal profile (user, 2026-11-17). Pri
    placeholders. "Cold & Flu" was kept as it was, on bin 1 (front-left). See *Compartments* below.
 9. **Braces get a tall bin at the back (2026-11-18):** elbow braces and other supports are bulky, so the
    back-left bin's walls are **220 mm** (the rest stay 160).
-10. **Bins 1 and 2 are already printed** (Cold & Flu front-left, Pain & Muscle front-right; as of 2026-11-18).
-    Don't change their labels or geometry, and keep every joint they're part of compatible with the printed
-    ones: bin 1's posts and floor sockets toward bin 3, the rails and keys on its centre wall that bin 2 locks
-    onto, bin 2's posts and floor sockets toward bins 1 and 4, and the rails and keys on bin 4's front wall.
-    `banded_bins = [1, 2]` keeps them as printed: `make bin_1` and `make bin_2` export byte-identical to before
-    the end columns.
+10. **Bins 1 and 2 are reprinted with end columns (2026-11-19).** They were printed first (2026-11-18), with
+    their posts banded like the rails. Their free wall ends drifted so far out of line that the bins didn't
+    fit, so they are reprinted with full-height columns like the rest (decision 11). Their labels, rails, keys
+    and sockets are unchanged; only the posts are. The banded-post option (`banded_bins`) is gone, since no bin
+    uses it.
 11. **End columns at free wall ends (2026-11-18).** Printing bin 2, the user saw a wall standing alone flex as
     it got taller, so its layers drifted out of line. A corner, where two walls meet, didn't flex. Every free
     wall end in the tray is where an open bin's wall stops against its neighbour, and its joint post ran only
     in the two 30 mm bands, leaving a bare 1.6 mm edge from 30 to 130 mm. **The posts now run the full height,
-    as columns; the rails stay banded.** Not on bins 1 and 2 (decision 10). This applies to more than this
-    model; a repo ground rule may follow.
+    as columns; the rails stay banded.** Bins 1 and 2 followed when they were reprinted (decision 10). This is
+    now a repo ground rule (*Columns at free wall ends*).
 
 ## Design
 
@@ -99,12 +98,7 @@ Material: **SUNLU PLA**, printed with the normal profile (user, 2026-11-17). Pri
   - **End columns (decision 11):** a post always sits at a wall's free end, so the posts run the **full
     height** as columns that stop the end flexing while it prints. The socket stays open all the way up, so a
     neighbour's rails pass through it as the bin is lowered in. Between the rail bands, the post simply butts
-    against the neighbour's wall. Columns are on bins 3, 4 and 6, two each; bin 5 has no free ends.
-  - **Banded posts (bins 1 and 2, as printed):** the posts run in the rails' two bands. Each upper post grows
-    out of its wall on a 42° chamfer. Its far cheek, across the socket from its wall, grows out of the post's
-    back on a second 42° slope, finishing at the band. Chamfered sideways with the rest of the post, it started
-    in mid-air at the socket's mouth, over the socket's own void, about 2 mm below the band. That is where the
-    rail enters when a bin is lowered in.
+    against the neighbour's wall. Columns are on bins 1, 2, 3, 4 and 6, two each; bin 5 has no free ends.
 - **Floor:** 2 mm, hex holes 14 mm across flats with 2.5 mm struts, inside a 4 mm solid band along the walls
   (10 mm along an open side).
 - **Label tab:** a 110 × 16.6 mm ledge on the inside of each bin's front wall. It's flush with the wall top and
@@ -126,7 +120,7 @@ unpacked. The most-used compartments are at the front.
 
 | | Left | Right |
 |---|---|---|
-| **Front** | 1 **Cold & Flu** (printed) | 2 **Pain & Muscle** |
+| **Front** | 1 **Cold & Flu** | 2 **Pain & Muscle** |
 | **Middle** | 3 **First Aid** | 4 **Skin** |
 | **Back** | 5 **Braces & Supports** (220 mm) | 6 **Tummy & Sleep** |
 
@@ -163,9 +157,10 @@ unpacked. The most-used compartments are at the front.
   piece is wider than 8.08 mm); Orca prints them as bridged overhang walls, with support off. Solid bins and
   the joint test have none. Each bin is a single shell; the joint test is two.
 - **Nothing floating:** OrcaSlicer's "floating regions" check passes on all 12 bins and the joint test, and
-  again on all 12 with the tall bin 5 (no slicer warnings at all). Before
-  the far-cheek slope it flagged every bin with posts (all but bin 5), in both wall styles. A face-angle check
-  can't catch that, because the cheek's underside was a legal 42° slope; only the void beneath it was wrong.
+  again on all 12 with the tall bin 5 (no slicer warnings at all). The banded posts first printed on bins 1
+  and 2 needed a sloped far cheek to pass it: without one, Orca flagged every bin with posts, because the
+  cheek started in mid-air over the socket's void. A face-angle check can't catch that, because the cheek's
+  underside was a legal 42° slope; only the void beneath it was wrong. Full-height columns have no such cheek.
 - **Fit**, by intersecting bins in place:
   - All 15 bin pairs meet with zero volume (under 0.001 mm³, both wall styles): they touch only face to face.
   - **Locks:** a bin slid 0.35 mm along its neighbour collides, as does one pulled away 0.66 mm. One pulled away
@@ -180,31 +175,39 @@ unpacked. The most-used compartments are at the front.
     bin 5 (34 to 40 heights, through every band crossing, both styles), never touches its owner, so the
     full-height posts leave the rail channels clear. A control run shows the check would catch a blocked
     channel: bin 4 raised 15 mm and shifted 0.35 mm sideways hits bin 6's rail (8.6 mm³).
-  - **Bins 1 and 2 unchanged:** their STL exports are byte-identical to the model before the end columns.
   - **Orca (2026-11-18, end columns):** all 12 bins slice with no warnings, floating regions included.
+  - **Bins 1 and 2 with end columns (2026-11-19):** bins 3 to 6 export byte-identical STLs to before, so only
+    bins 1 and 2 changed. The 9 pairs that include bin 1 or 2 meet with zero volume in both styles. At the 3
+    joints where bin 1 or 2 is the open one (1 into 3, 2 into 1, 2 into 4), the open bin raised by 0.3 to
+    159 mm (44 heights, through every band crossing, both styles) never touches its owner. Controls: bin 2
+    raised 15 mm and shifted 0.35 mm along bin 1's centre wall hits its rail (8.6 mm³), and bin 1 raised 15 mm
+    and shifted 0.35 mm sideways hits bin 3's rail (17.2 mm³). Orca slices both bins in both styles with no
+    warnings.
 
 ### Print list: filament and time (sliced)
 
 OrcaSlicer 2.5.0-dev (the user's own build, CLI, through `orca_check.py` on `make`) with the presets on the
 model's `// ORCA:` lines: printer `Qidi Q2 0.4 nozzle @Q2 0.4`, process `0.20mm Standard @Qidi Q2`, filament
 `SUNLU PLA+ 2.0 @Q2 0.4` (1.21 g/cm³, 12 mm³/s max flow), no brim. These are Orca's estimates for each bin
-sliced on its own plate, as of 2026-11-18 (real labels, tall bin 5, end columns on bins 3, 4 and 6).
+sliced on its own plate, as of 2026-11-19 (real labels, tall bin 5, end columns on every bin with a free wall
+end).
 
 | Bin | Walls owned | Solid | Hex |
 |---|---|---|---|
-| 1 Cold & Flu (printed) | front, left, centre | 5 h 28 min, 206 g | 6 h 16 min, 124 g |
-| 2 Pain & Muscle (printed) | front, right | 4 h 15 min, 148 g | 4 h 47 min, 96 g |
+| 1 Cold & Flu | front, left, centre | 6 h 5 min, 211 g | 6 h 43 min, 129 g |
+| 2 Pain & Muscle | front, right | 4 h 58 min, 154 g | 5 h 14 min, 101 g |
 | 3 First Aid | front, left, centre | 6 h 18 min, 214 g | 6 h 55 min, 131 g |
 | 4 Skin | front, right | 4 h 51 min, 155 g | 5 h 19 min, 103 g |
 | 5 Braces & Supports, 220 mm | all four | 8 h 19 min, 342 g | 9 h 33 min, 194 g |
 | 6 Tummy & Sleep | front, right, back | 5 h 54 min, 208 g | 6 h 39 min, 131 g |
-| **Tray** | | **35 h 5 min, 1,273 g** (437 m) | **39 h 29 min, 779 g** (268 m) |
-| Still to print (bins 3 to 6) | | 25 h 22 min, 919 g | 28 h 26 min, 559 g |
+| **Tray** | | **36 h 25 min, 1,284 g** (about 441 m) | **40 h 23 min, 789 g** (about 271 m) |
+| Reprint (bins 1 and 2) | | 11 h 3 min, 365 g | 11 h 57 min, 230 g |
 
 Plus `joint_test`: 15 min, 5 g. The tall bin costs 81 g and 1 h 40 min more than at 160 mm when solid
-(6 h 39 min, 261 g before), 40 g and 2 h more in hex. The end columns cost 25 to 36 min and about 5 g per bin
-(bins 3, 4 and 6 were 5 h 42 min / 209 g, 4 h 26 min / 150 g and 5 h 26 min / 203 g solid): 1 h 29 min and
-about 15 g on the solid tray, 1 h 17 min and about 16 g on the hex one.
+(6 h 39 min, 261 g before), 40 g and 2 h more in hex. The end columns cost 25 to 43 min and about 5 g per bin
+(solid, bins 1, 2, 3, 4 and 6 were 5 h 28 min / 206 g, 4 h 15 min / 148 g, 5 h 42 min / 209 g,
+4 h 26 min / 150 g and 5 h 26 min / 203 g): 2 h 49 min and about 26 g on the solid tray, 2 h 11 min and about
+26 g on the hex one.
 
 How the joints compare, for the whole tray with every wall 160 mm (sliced 2026-11-17):
 
@@ -218,7 +221,7 @@ The comparison's hex column used the first, stretched wall hexes; the regular he
 36 h 41 min, 732 g. The current tray, with the tall bin 5, is in the print list above.
 
 - **Single walls save 345 g (23 %) and 3 h 50 min on the solid tray**, and 85 g and 8 h 11 min on the hex one.
-- **Hex walls save filament but cost time:** on the current tray, 494 g less than solid, 4 h 24 min longer. Each hole adds its own
+- **Hex walls save filament but cost time:** on the current tray, 495 g less than solid, 3 h 58 min longer. Each hole adds its own
   wall loop on every layer, plus travel and retractions, and each roof is bridged at 10 mm/s. The regular
   hexes have 1,399 holes to the stretched ones' 1,291, yet print 3 h faster, for 18 g more.
 - **The 12 mm³/s cap on SUNLU PLA+ 2.0 limits the walls** to about 143 mm/s. A max-flow calibration, followed by
